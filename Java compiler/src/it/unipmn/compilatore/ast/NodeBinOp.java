@@ -1,6 +1,6 @@
 package it.unipmn.compilatore.ast;
 
-import it.unipmn.compilatore.exceptions.LexicalException;
+import it.unipmn.compilatore.exceptions.SyntacticException;
 
 /**
  * Rappresenta un'operazione binaria (con due operandi).
@@ -22,9 +22,9 @@ public class NodeBinOp extends NodeAST{
     public NodeBinOp(LangOper op, NodeAST left, NodeAST right, int riga){
         super(riga);
         //Controlli Strutturali, impedisco che venga creato un AST incompleto o non funzionante
-        if(op == null) throw new LexicalException("Operatore mancante in NodeBinOp");
-        if (left == null) throw new LexicalException("Operando sinistro mancante in NodeBinOp");
-        if (right == null) throw new LexicalException("Operando destro mancante in NodeBinOp");
+        if (op == null) throw new SyntacticException("Operatore mancante alla riga " + riga);
+        if (left == null) throw new SyntacticException("Operando sinistro mancante alla riga " + riga);
+        if (right == null) throw new SyntacticException("Operando destro mancante alla riga " + riga);
 
         this.op = op;
         this.left = left;

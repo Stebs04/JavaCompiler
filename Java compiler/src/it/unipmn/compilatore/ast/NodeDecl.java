@@ -1,6 +1,6 @@
 package it.unipmn.compilatore.ast;
 
-import it.unipmn.compilatore.exceptions.LexicalException;
+import it.unipmn.compilatore.exceptions.SyntacticException;
 
 /**
  * Rappresenta una dichiarazione di variabile.
@@ -24,8 +24,8 @@ public class NodeDecl extends NodeAST{
         super(riga);
 
         // Controlliamo solo ciò che è obbligatorio
-        if (id == null) throw new LexicalException("ID mancante in Dichiarazione");
-        if (type == null) throw new LexicalException("Tipo mancante in Dichiarazione");
+        if (id == null) throw new SyntacticException("ID mancante nella Dichiarazione");
+        if (type == null) throw new SyntacticException("Tipo mancante nella Dichiarazione");
 
         this.id = id;
         this.type = type;
