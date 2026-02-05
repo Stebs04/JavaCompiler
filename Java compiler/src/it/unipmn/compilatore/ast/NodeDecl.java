@@ -3,44 +3,32 @@ package it.unipmn.compilatore.ast;
 import it.unipmn.compilatore.exceptions.SyntacticException;
 
 /**
- * Rappresenta una dichiarazione di variabile.
- * Gestisce sia dichiarazioni semplici ("int a") che con inizializzazione ("int a = 5").
+ * Rappresenta la dichiarazione di una variabile.
+ * L'inizializzazione (init) è opzionale, quindi può essere null.
  */
-public class NodeDecl extends NodeAST{
+public class NodeDecl extends NodeAST {
 
     private final NodeId id;
     private final LangType type;
-    private final NodeAST init;
+    private final NodeAST init; // Opzionale
 
-    /**
-     * Costruisce un nodo dichiarazione.
-     *
-     * @param id   L'identificatore della variabile. Non null.
-     * @param type Il tipo (INT/FLOAT). Non null.
-     * @param init L'espressione di inizializzazione (può essere null).
-     * @param riga La riga della dichiarazione.
-     */
     public NodeDecl(NodeId id, LangType type, NodeAST init, int riga) {
         super(riga);
-
-        // Controlliamo solo ciò che è obbligatorio
-        if (id == null) throw new SyntacticException("ID mancante nella Dichiarazione");
-        if (type == null) throw new SyntacticException("Tipo mancante nella Dichiarazione");
+        // ID e Tipo sono obbligatori, l'inizializzazione no.
+        if (id == null) throw new SyntacticException("ID mancante nella dichiarazione riga " + riga);
+        if (type == null) throw new SyntacticException("Tipo mancante nella dichiarazione riga " + riga);
 
         this.id = id;
         this.type = type;
         this.init = init;
     }
 
-    public NodeId getId() {
-        return id;
-    }
+    public NodeId getId() { return id; }
+    public LangType getType() { return type; }
+    public NodeAST getInit() { return init; }
 
-    public LangType getType() {
-        return type;
-    }
-
-    public NodeAST getInit() {
-        return init;
+    @Override
+    public String toString() {
+        return "Decl: " + type + " " + id + (init != null ? " = " + init : "");
     }
 }

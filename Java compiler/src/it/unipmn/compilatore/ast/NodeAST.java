@@ -1,19 +1,21 @@
 package it.unipmn.compilatore.ast;
 
 /**
- * Classe astratta radice della gerarchia dell'Abstract Syntax Tree (AST).
+ * Classe astratta radice per tutti i nodi dell'Abstract Syntax Tree (AST).
  * <p>
- * Rappresenta un generico nodo dell'albero sintattico. Mantiene le informazioni
- * comuni a tutti i nodi, come la posizione nel codice sorgente (riga),
- * essenziale per la segnalazione degli errori semantici.
+ * Garantisce che ogni nodo, sia esso un'istruzione o un'espressione,
+ * mantenga il riferimento alla riga del file sorgente originale.
+ * Questo è fondamentale per segnalare errori semantici precisi all'utente.
  * </p>
  */
 public abstract class NodeAST {
+
+    // Campo final per garantire l'immutabilità della posizione
     private final int riga;
 
     /**
-     * Costruttore base per tutti i nodi dell'AST.
-     * * @param riga Il numero di riga nel file sorgente dove inizia questo costrutto.
+     * Costruttore base.
+     * @param riga Il numero di riga nel file sorgente.
      */
     public NodeAST(int riga) {
         this.riga = riga;
@@ -21,7 +23,6 @@ public abstract class NodeAST {
 
     /**
      * Restituisce la riga di definizione del nodo.
-     * @return Il numero di riga.
      */
     public int getRiga() {
         return riga;

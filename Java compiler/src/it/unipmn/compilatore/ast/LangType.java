@@ -1,17 +1,15 @@
 package it.unipmn.compilatore.ast;
 
 /**
- * Rappresenta i tipi di dato primitivi supportati dal linguaggio durante
- * la fase di analisi semantica e generazione del codice.
- * Questa enumerazione viene utilizzata all'interno dei nodi dell'AST per
- * la verifica della compatibilità dei tipi (Type Checking).
+ * Enumerazione dei tipi di dato primitivi gestiti dal compilatore.
+ * <p>
+ * Serve per assegnare un tipo semantico ai nodi (es. costanti o dichiarazioni).
+ * Sarà cruciale nella fase successiva di Type Checking.
+ * </p>
  */
 public enum LangType {
-
-    /** Tipo intero a 32 bit */
+    /** Tipo intero (int) */
     INT,
-
-    /** Tipo a virgola mobile (precisione singola/doppia) */
+    /** Tipo virgola mobile (float) */
     FLOAT;
-
 }
