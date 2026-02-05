@@ -26,7 +26,7 @@ public enum TokenType {
     DIVIDE, // '/'
 
     //Delimitatori e simboli
-    SEMI, // ?;
+    SEMI, // ';'
 
     //Gestione fine file
     EOF // Fine del file
