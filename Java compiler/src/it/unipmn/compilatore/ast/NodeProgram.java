@@ -1,5 +1,7 @@
 package it.unipmn.compilatore.ast;
 
+import it.unipmn.compilatore.visitor.IVisitor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,5 +36,10 @@ public class NodeProgram extends NodeAST {
             sb.append("  ").append(stmt.toString()).append("\n");
         }
         return sb.toString();
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

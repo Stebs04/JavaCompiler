@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta un identificatore di variabile (es. "x", "somma").
@@ -26,5 +27,10 @@ public class NodeId extends NodeAST {
     @Override
     public String toString() {
         return "<ID: " + name + ">";
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

@@ -1,5 +1,6 @@
 package it.unipmn.compilatore.test;
 
+import it.unipmn.compilatore.visitor.PrintASTVisitor;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -96,5 +97,29 @@ public class ASTTest {
 
         assertEquals(1, prog.getStatements().size());
         assertTrue(prog.toString().startsWith("PROGRAM:"));
+    }
+
+    @Test
+    void testPrintVisitor() {
+        System.out.println("TEST VISITOR:");
+        // Creiamo un pezzetto di albero a mano: x = 5 + 3;
+        NodeId x = new NodeId("x", 1);
+        NodeCost c5 = new NodeCost(LangType.INT, "5", 1);
+        NodeCost c3 = new NodeCost(LangType.INT, "3", 1);
+        NodeBinOp somma = new NodeBinOp(LangOper.PLUS, c5, c3, 1);
+        NodeAssign assign = new NodeAssign(x, somma, 1);
+
+        NodeProgram prog = new NodeProgram(0);
+        prog.addStatement(assign);
+
+        // Usiamo il visitor
+        PrintASTVisitor visitor = new PrintASTVisitor();
+        prog.accept(visitor); // Avviamo la visita dalla radice
+
+        String risultato = visitor.getOutput();
+        System.out.println(risultato);
+
+        // Verifica che l'output contenga la struttura corretta
+        assertTrue(risultato.contains("x = (5 PLUS 3);"));
     }
 }

@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta un'operazione binaria (es. 3 + a).
@@ -31,5 +32,10 @@ public class NodeBinOp extends NodeAST {
     @Override
     public String toString() {
         return "(" + left + " " + op + " " + right + ")";
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

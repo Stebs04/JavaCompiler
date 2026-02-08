@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta l'istruzione di stampa (print id).
@@ -20,5 +21,10 @@ public class NodePrint extends NodeAST {
     @Override
     public String toString() {
         return "<Print: " + id + ">";
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }
