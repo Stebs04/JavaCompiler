@@ -1,33 +1,37 @@
 package it.unipmn.compilatore.token;
 
-/** 
- * Enumeratori per definire la tipologia dei token
- * @author Bellan Stefano 20054330
- **/
+/**
+ * Enumerazione che definisce le tipologie di token ammesse nel linguaggio.
+ * <p>
+ * Include tipi primitivi, parole chiave, operatori matematici,
+ * operatori di assegnamento e delimitatori.
+ * </p>
+ */
 public enum TokenType {
-    //Tipi di dato e Identificatori
-    INT, // Numeri interi (5, 50)
-    FLOAT, // Numeri decimali (3.14, 0.5)
-    ID, // Identificatori variabili (es temp, x, somma)
+    // Tipi di dato e Identificatori
+    INT,        // Numeri interi
+    FLOAT,      // Numeri decimali
+    ID,         // Identificatori
 
-    //Parola chiave (Keywords)
-    TYINT, // Parola chiave 'int'
-    TYFLOAT, // Parola chiave 'float'
-    PRINT, // Parola chiave 'print'
+    // Parole chiave
+    TYINT,      // int
+    TYFLOAT,    // float
+    PRINT,      // print
 
-    //Operatori di assegnamento
-    ASSIGN, // '='
-    OP_ASSIGN, // '+=' '-=' '*=' '/='
+    // Operatori di assegnamento
+    ASSIGN,     // =
 
-    //Operatori aritmetici
-    PLUS, // '+'
-    MINUS, // '-'
-    TIMES, // '*'
-    DIVIDE, // '/'
+    // Operatori aritmetici
+    PLUS,       // +
+    MINUS,      // -
+    TIMES,      // *
+    DIVIDE,     // /
 
-    //Delimitatori e simboli
-    SEMI, // ';'
+    // Delimitatori e simboli
+    SEMI,       // ;
+    LPAREN,     // (
+    RPAREN,     // )
 
-    //Gestione fine file
-    EOF // Fine del file
+    // Gestione fine file
+    EOF         // End Of File
 }
