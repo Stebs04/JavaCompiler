@@ -33,13 +33,12 @@ public class Compiler {
             System.out.println("Inizio compilazione del file: " + fileName);
 
             // Inizializzo lo scanner passando il percorso del file
-            // (Lo scanner si occupa di aprire il file e leggere i caratteri)
             Scanner scanner = new Scanner(fileName);
 
             // Inizializzo il parser collegandolo allo scanner
             Parser parser = new Parser(scanner);
 
-            // Avvio l'analisi sintattica per costruire l'AST (Abstract Syntax Tree)
+            // Avvio l'analisi sintattica per costruire l'AST
             NodeProgram program = parser.parse();
             System.out.println("Analisi sintattica completata correttamente.");
 
@@ -49,27 +48,26 @@ public class Compiler {
             program.accept(typeChecker);
             System.out.println("Analisi semantica completata: nessun errore trovato.");
 
-            // Creo il visitatore per la generazione del codice
+            // Creo il visitatore per la generazione del codice target (dc)
             CodeGeneratorVisitor codeGen = new CodeGeneratorVisitor();
-            // Percorro l'AST per tradurre i nodi in istruzioni Bytecode
+            // Percorro l'AST per tradurre i nodi in comandi dc
             program.accept(codeGen);
 
-            // Recupero il codice assembly generato sotto forma di stringa
-            String jasminCode = codeGen.getCode();
+            // Recupero il codice generato sotto forma di stringa
+            String dcCode = codeGen.getCode();
 
-            // Scrivo il codice generato sul file di output "Main.j"
-            // Utilizzo il try-with-resources per garantire la chiusura del file
-            try (FileWriter writer = new FileWriter("Main.j")) {
-                writer.write(jasminCode);
+            // Scrivo il codice generato sul file di output "out.dc"
+            try (FileWriter writer = new FileWriter("out.dc")) {
+                writer.write(dcCode);
             }
 
-            System.out.println("Codice Jasmin generato con successo in Main.j");
+            System.out.println("Codice dc generato con successo in out.dc");
 
         } catch (LexicalException | SyntacticException e) {
-            // Intercetto gli errori specifici del compilatore (lessicali o sintattici)
+            // Intercetto gli errori specifici del compilatore
             System.err.println("Errore di Compilazione: " + e.getMessage());
         } catch (IOException e) {
-            // Intercetto errori di sistema (es. file non trovato, errore di scrittura)
+            // Intercetto errori di sistema (es. file non trovato)
             System.err.println("Errore di I/O: " + e.getMessage());
         }
     }
