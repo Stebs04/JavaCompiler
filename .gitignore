@@ -22,3 +22,6 @@ nbdist/
 *.log
 bin/
 target/
+
+# File di prova
+.txt
