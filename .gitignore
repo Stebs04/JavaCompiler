@@ -25,3 +25,5 @@ target/
 
 # File di prova
 .txt
+
+/out
