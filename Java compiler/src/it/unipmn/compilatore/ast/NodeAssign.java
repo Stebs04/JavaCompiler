@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta un assegnamento (id = espressione).
@@ -25,5 +26,10 @@ public class NodeAssign extends NodeAST {
     @Override
     public String toString() {
         return "<Assign: " + id + " = " + expr + ">";
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

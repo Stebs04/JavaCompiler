@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta una costante letterale (numerica) nell'AST.
@@ -44,5 +45,10 @@ public class NodeCost extends NodeAST {
     @Override
     public String toString() {
         return "<Cost: " + type + ", " + value + ">";
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

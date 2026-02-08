@@ -1,6 +1,7 @@
 package it.unipmn.compilatore.ast;
 
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
  * Rappresenta la dichiarazione di una variabile.
@@ -30,5 +31,10 @@ public class NodeDecl extends NodeAST {
     @Override
     public String toString() {
         return "Decl: " + type + " " + id + (init != null ? " = " + init : "");
+    }
+
+    @Override
+    public void accept(IVisitor visitor){
+        visitor.visit(this);
     }
 }

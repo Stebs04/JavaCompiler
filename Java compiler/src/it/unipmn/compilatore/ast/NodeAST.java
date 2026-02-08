@@ -1,5 +1,7 @@
 package it.unipmn.compilatore.ast;
 
+import it.unipmn.compilatore.visitor.IVisitor;
+
 /**
  * Classe astratta radice per tutti i nodi dell'Abstract Syntax Tree (AST).
  * <p>
@@ -27,4 +29,10 @@ public abstract class NodeAST {
     public int getRiga() {
         return riga;
     }
+
+    /**
+     * Metodo per accettare un visitatore.
+     * Ogni nodo concreto dovrà implementarlo chiamando visitor.visit(this).
+     */
+    public abstract void accept(IVisitor visitor);
 }
