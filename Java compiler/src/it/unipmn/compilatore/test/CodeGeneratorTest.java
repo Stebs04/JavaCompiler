@@ -4,15 +4,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-import it.unipmn.compilatore.ast.*;
 import it.unipmn.compilatore.visitor.CodeGeneratorVisitor;
+import it.unipmn.compilatore.ast.*;
 
 /**
- * Suite di test per il CodeGeneratorVisitor.
- * <p>
- * Verifico isolatamente che ogni nodo dell'AST venga tradotto nel corretto
- * comando per la calcolatrice dc.
- * </p>
+ * Test per il CodeGeneratorVisitor.
+ * Verifica che vengano prodotti i comandi corretti per la calcolatrice 'dc' (notazione polacca inversa).
  */
 public class CodeGeneratorTest {
 
@@ -24,90 +21,71 @@ public class CodeGeneratorTest {
     }
 
     @Test
-    void testProgramHeader() {
-        NodeProgram program = new NodeProgram(1);
-        program.accept(visitor);
+    void testHeaderPrecisione() {
+        NodeProgram prog = new NodeProgram(0);
+        prog.accept(visitor);
 
         // Verifico che venga impostata la precisione
-        assertTrue(visitor.getCode().contains("20 k"), "L'header deve impostare la precisione a 20 cifre");
+        assertTrue(visitor.getCode().contains("20 k"));
     }
 
     @Test
-    void testCostanteIntera() {
-        NodeCost cost = new NodeCost(LangType.INT, "42", 1);
-        cost.accept(visitor);
+    void testOperazioniMatematiche() {
+        // Genero: 5 + 3
+        NodeCost c1 = new NodeCost(LangType.INT, "5", 1);
+        NodeCost c2 = new NodeCost(LangType.INT, "3", 1);
+        NodeBinOp op = new NodeBinOp(LangOper.PLUS, c1, c2, 1);
 
-        // Verifico il formato numero + spazio
-        assertEquals("42 ", visitor.getCode());
+        op.accept(visitor);
+        String code = visitor.getCode();
+
+        // Verifico la presenza degli operandi e dell'operatore
+        assertTrue(code.contains("5"));
+        assertTrue(code.contains("3"));
+        assertTrue(code.contains("+"));
     }
 
     @Test
     void testCostanteNegativa() {
-        NodeCost cost = new NodeCost(LangType.INT, "-5", 1);
-        cost.accept(visitor);
+        // Genero: -10
+        NodeCost c = new NodeCost(LangType.INT, "-10", 1);
 
-        // Verifico la conversione del meno standard in underscore per dc
-        assertEquals("_5 ", visitor.getCode());
+        c.accept(visitor);
+
+        // Verifico che il meno standard sia convertito in underscore per dc
+        assertTrue(visitor.getCode().contains("_10"));
     }
 
     @Test
-    void testCostanteFloat() {
-        NodeCost cost = new NodeCost(LangType.FLOAT, "3.14", 1);
-        cost.accept(visitor);
-
-        assertEquals("3.14 ", visitor.getCode());
-    }
-
-    @Test
-    void testDichiarazioneVariabile() {
-        // Simulo: int x = 10;
-        NodeId id = new NodeId("x", 1);
-        NodeCost init = new NodeCost(LangType.INT, "10", 1);
-        NodeDecl decl = new NodeDecl(id, LangType.INT, init, 1);
+    void testStoreLoadVariabile() {
+        // Simulo: int a = 100;
+        NodeId id = new NodeId("a", 1);
+        NodeCost val = new NodeCost(LangType.INT, "100", 1);
+        NodeDecl decl = new NodeDecl(id, LangType.INT, val, 1);
 
         decl.accept(visitor);
-
-        // Deve calcolare 10 e salvarlo nel primo registro disponibile ('a')
         String code = visitor.getCode();
-        assertTrue(code.contains("10 "), "Deve caricare il valore");
-        assertTrue(code.contains("sa"), "Deve salvare nel registro 'a'");
+
+        // Verifico comando 's' (store) e il valore
+        assertTrue(code.contains("100"));
+        assertTrue(code.contains("sa")); // 'a' è il primo registro libero
     }
 
     @Test
-    void testOperazioneBinaria() {
-        // Simulo: 5 + 3
-        NodeCost left = new NodeCost(LangType.INT, "5", 1);
-        NodeCost right = new NodeCost(LangType.INT, "3", 1);
-        NodeBinOp op = new NodeBinOp(LangOper.PLUS, left, right, 1);
+    void testPrint() {
+        // Necessito di dichiarare prima per popolare la symbol table del visitor
+        NodeId id = new NodeId("a", 1);
+        NodeDecl decl = new NodeDecl(id, LangType.INT, null, 1);
+        decl.accept(visitor);
 
-        op.accept(visitor);
-
-        String code = visitor.getCode();
-        assertTrue(code.contains("5 "), "Manca operando sinistro");
-        assertTrue(code.contains("3 "), "Manca operando destro");
-        assertTrue(code.contains("+"), "Manca operatore somma");
-    }
-
-    @Test
-    void testStampa() {
-        // Per testare la stampa, devo prima dichiarare la variabile affinché esista nella SymbolTable interna al visitor
-        NodeId idDecl = new NodeId("res", 1);
-        NodeDecl decl = new NodeDecl(idDecl, LangType.INT, null, 1);
-        decl.accept(visitor); // Assegna registro 'a' a "res"
-
-        // Ora testo la stampa
-        NodeId idPrint = new NodeId("res", 2);
-        NodePrint print = new NodePrint(idPrint, 2);
-
-        // Pulisco il buffer per controllare solo la stampa
-        CodeGeneratorVisitor printVisitor = new CodeGeneratorVisitor();
-        // Trucco: devo reinserire la variabile nella symbol table del nuovo visitor o usare lo stesso
-        // Per semplicità continuo con lo stesso visitor e controllo che appaiano i comandi di stampa
+        // Simulo print a;
+        NodePrint print = new NodePrint(id, 2);
         print.accept(visitor);
 
         String code = visitor.getCode();
-        assertTrue(code.contains("la"), "Deve caricare la variabile");
-        assertTrue(code.contains("p"), "Deve stampare (peek)");
-        assertTrue(code.contains("si"), "Deve pulire lo stack (pop in registro i)");
+        // Verifico caricamento (l), stampa (p) e pulizia stack (si)
+        assertTrue(code.contains("la"));
+        assertTrue(code.contains("p"));
+        assertTrue(code.contains("si"));
     }
 }

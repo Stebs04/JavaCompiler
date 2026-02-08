@@ -6,28 +6,26 @@ import it.unipmn.compilatore.symboltable.Symbol;
 import it.unipmn.compilatore.symboltable.SymbolTable;
 
 /**
- * Visitatore per l'Analisi Semantica (Type Checking).
+ * Visitatore semantico che controlla i tipi e gestisce le conversioni implicite.
  * <p>
- * Percorre l'AST per verificare la coerenza dei tipi e la corretta dichiarazione delle variabili.
- * Utilizza una SymbolTable per tracciare le dichiarazioni e un campo resType per propagare
- * i tipi dalle foglie verso la radice delle espressioni.
+ * Analizzo l'albero per verificare la compatibilità dei tipi. Se trovo
+ * un'operazione tra tipi diversi ma compatibili (es. float + int),
+ * modifico l'AST inserendo un NodeConvert.
  * </p>
  */
 public class TypeCheckVisitor implements IVisitor {
 
-    private SymbolTable symbolTable;
-    private LangType resType;
+    private SymbolTable scopes;
+    // Tengo traccia del tipo dell'ultima espressione analizzata per propagarlo verso l'alto
+    private LangType lastType;
 
-    /**
-     * Inizializza la Symbol Table.
-     */
     public TypeCheckVisitor() {
-        this.symbolTable = new SymbolTable();
+        this.scopes = new SymbolTable();
     }
 
     @Override
     public void visit(NodeProgram node) {
-        // Itero sulle istruzioni del programma
+        // Itero su tutte le istruzioni del programma per validarle sequenzialmente
         for (NodeAST stmt : node.getStatements()) {
             stmt.accept(this);
         }
@@ -35,89 +33,107 @@ public class TypeCheckVisitor implements IVisitor {
 
     @Override
     public void visit(NodeDecl node) {
-        String nome = node.getId().getName();
-        LangType tipoDichiarato = node.getType();
-        Symbol symbol = new Symbol(tipoDichiarato);
-
-        // Tento l'inserimento nella Symbol Table
-        if (!symbolTable.insert(nome, symbol)) {
-            throw new SyntacticException("Errore Semantico: Variabile '" + nome + "' già dichiarata nello scope corrente.");
+        // Verifico nel context corrente se la variabile è già stata definita
+        if (scopes.lookup(node.getId().getName()) != null) {
+            throw new SyntacticException("Variabile '" + node.getId().getName() + "' già dichiarata.");
         }
 
-        // Se presente, verifico l'inizializzazione
+        // Registro la variabile nella symbol table col suo tipo semantico
+        scopes.insert(node.getId().getName(), new Symbol(node.getType()));
+
         if (node.getInit() != null) {
+            // Analizzo l'espressione di inizializzazione
             node.getInit().accept(this);
-            // Controllo che il tipo dell'espressione di inizializzazione coincida con il dichiarato
-            if (resType != tipoDichiarato) {
-                throw new SyntacticException("Errore Semantico: Impossibile assegnare " + resType +
-                        " alla variabile '" + nome + "' di tipo " + tipoDichiarato);
+
+            // Controllo se è necessaria una promozione di tipo (Int -> Float)
+            if (node.getType() == LangType.FLOAT && lastType == LangType.INT) {
+                // Modifico l'AST iniettando il nodo di conversione
+                NodeConvert convert = new NodeConvert(node.getInit(), LangType.FLOAT);
+                node.setInit(convert);
+            } else if (node.getType() != lastType) {
+                throw new SyntacticException("Tipo non compatibile nell'inizializzazione di " + node.getId().getName());
             }
         }
     }
 
     @Override
     public void visit(NodeAssign node) {
-        String nome = node.getId().getName();
-        Symbol symbol = symbolTable.lookup(nome);
-
-        // Verifico che la variabile esista
+        Symbol symbol = scopes.lookup(node.getId().getName());
         if (symbol == null) {
-            throw new SyntacticException("Errore Semantico: Variabile '" + nome + "' non dichiarata.");
+            throw new SyntacticException("Variabile non dichiarata: " + node.getId().getName());
         }
 
-        // Calcolo il tipo dell'espressione
         node.getExpr().accept(this);
 
-        // Verifico la compatibilità dei tipi
-        if (resType != symbol.getType()) {
-            throw new SyntacticException("Errore Semantico: Impossibile assegnare " + resType +
-                    " alla variabile '" + nome + "' di tipo " + symbol.getType());
-        }
-    }
-
-    @Override
-    public void visit(NodePrint node) {
-        String nome = node.getId().getName();
-        // Verifico solo l'esistenza della variabile nella tabella
-        if (symbolTable.lookup(nome) == null) {
-            throw new SyntacticException("Errore Semantico: Impossibile stampare la variabile '" + nome + "' perché non dichiarata.");
+        // Verifico la compatibilità per l'assegnamento ed eventuale casting
+        if (symbol.getType() == LangType.FLOAT && lastType == LangType.INT) {
+            NodeConvert convert = new NodeConvert(node.getExpr(), LangType.FLOAT);
+            // Aggiorno il riferimento nell'AST
+            node.setExpr(convert);
+            // Aggiorno il tipo corrente al risultato della conversione
+            lastType = LangType.FLOAT;
+        } else if (symbol.getType() != lastType) {
+            throw new SyntacticException("Assegnazione non compatibile per " + node.getId().getName());
         }
     }
 
     @Override
     public void visit(NodeBinOp node) {
-        // Visito l'operando sinistro e salvo il tipo
+        // Analizzo l'operando sinistro
         node.getLeft().accept(this);
-        LangType leftType = resType;
+        LangType leftType = lastType;
 
-        // Visito l'operando destro e salvo il tipo
+        // Analizzo l'operando destro
         node.getRight().accept(this);
-        LangType rightType = resType;
+        LangType rightType = lastType;
 
-        // Controllo che i tipi siano identici (strict typing)
-        if (leftType != rightType) {
-            throw new SyntacticException("Errore Semantico: Operazione '" + node.getOp() +
-                    "' non consentita tra " + leftType + " e " + rightType);
+        // Determino il tipo risultante dell'operazione e gestisco il widening
+        if (leftType == LangType.INT && rightType == LangType.INT) {
+            lastType = LangType.INT;
+        } else {
+            // Se almeno un operando è Float, il risultato dell'operazione è Float
+            lastType = LangType.FLOAT;
+
+            // Converto l'operando sinistro se è di tipo intero
+            if (leftType == LangType.INT) {
+                node.setLeft(new NodeConvert(node.getLeft(), LangType.FLOAT));
+            }
+            // Converto l'operando destro se è di tipo intero
+            if (rightType == LangType.INT) {
+                node.setRight(new NodeConvert(node.getRight(), LangType.FLOAT));
+            }
         }
-
-        // Il risultato ha lo stesso tipo degli operandi
-        this.resType = leftType;
-    }
-
-    @Override
-    public void visit(NodeCost node) {
-        // Registro il tipo della costante nel campo risultato
-        this.resType = node.getType();
     }
 
     @Override
     public void visit(NodeId node) {
-        Symbol symbol = symbolTable.lookup(node.getName());
-        // Controllo che la variabile usata nell'espressione sia stata dichiarata
+        Symbol symbol = scopes.lookup(node.getName());
         if (symbol == null) {
-            throw new SyntacticException("Errore Semantico: Variabile '" + node.getName() + "' non dichiarata.");
+            throw new SyntacticException("Uso di variabile non dichiarata: " + node.getName());
         }
-        // Registro il tipo della variabile trovata
-        this.resType = symbol.getType();
+        // Propago il tipo recuperato dalla symbol table
+        lastType = symbol.getType();
+    }
+
+    @Override
+    public void visit(NodeCost node) {
+        // Propago il tipo nativo della costante
+        lastType = node.getType();
+    }
+
+    @Override
+    public void visit(NodePrint node) {
+        // Verifico solo l'esistenza della variabile, la stampa supporta ogni tipo
+        if (scopes.lookup(node.getId().getName()) == null) {
+            throw new SyntacticException("Tentativo di stampa di variabile non dichiarata");
+        }
+    }
+
+    @Override
+    public void visit(NodeConvert node) {
+        // Visito l'espressione interna per validarla
+        node.getExpr().accept(this);
+        // Il tipo risultante di questo nodo è forzato al target type
+        lastType = node.getTargetType();
     }
 }

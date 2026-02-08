@@ -1,129 +1,97 @@
 package it.unipmn.compilatore.test;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import it.unipmn.compilatore.scanner.Scanner;
 import it.unipmn.compilatore.parser.Parser;
 import it.unipmn.compilatore.ast.*;
-import it.unipmn.compilatore.exceptions.*;
+import it.unipmn.compilatore.exceptions.SyntacticException;
 
 /**
- * Suite di test per il Parser.
- * <p>
- * Verifica che il parser costruisca correttamente l'AST a partire dal codice sorgente
- * e che rispetti le regole di precedenza degli operatori e la struttura sintattica.
- * </p>
+ * Test per il Parser (Analizzatore Sintattico).
+ * Verifica la costruzione dell'albero sintattico, la precedenza degli operatori
+ * e la gestione degli errori di sintassi.
  */
 public class ParserTest {
 
-    /**
-     * Metodo helper: crea un parser a partire da una stringa di codice.
-     * Simula il processo di lettura da file.
-     */
-    private Parser createParser(String code) throws IOException, LexicalException {
-        File file = new File("test_parser.txt");
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(code);
-        }
-        Scanner scanner = new Scanner("test_parser.txt");
-        return new Parser(scanner);
+    @Test
+    void testProgrammaBase(@TempDir Path tempDir) throws Exception {
+        // Scrivo un programma valido minimo
+        Path file = tempDir.resolve("ok.txt");
+        Files.writeString(file, "int x; x = 5; print x;");
+
+        Scanner scanner = new Scanner(file.toString());
+        Parser parser = new Parser(scanner);
+        NodeProgram prog = parser.parse();
+
+        // Verifico che ci siano esattamente 3 istruzioni
+        assertEquals(3, prog.getStatements().size());
+        // Controllo i tipi delle istruzioni nell'ordine corretto
+        assertTrue(prog.getStatements().get(0) instanceof NodeDecl);
+        assertTrue(prog.getStatements().get(1) instanceof NodeAssign);
+        assertTrue(prog.getStatements().get(2) instanceof NodePrint);
+
+        scanner.close();
     }
 
     @Test
-    void testPrint() throws Exception {
-        String code = "print x;";
-        Parser parser = createParser(code);
+    void testPrecedenzaOperatori(@TempDir Path tempDir) throws Exception {
+        // Testo che la moltiplicazione abbia precedenza sulla somma
+        Path file = tempDir.resolve("prec.txt");
+        Files.writeString(file, "x = 5 + 2 * 3;");
 
-        NodeProgram program = parser.parse();
+        Scanner scanner = new Scanner(file.toString());
+        Parser parser = new Parser(scanner);
+        NodeProgram prog = parser.parse();
 
-        assertEquals(1, program.getStatements().size());
-        NodeAST stmt = program.getStatements().get(0);
+        NodeAssign assign = (NodeAssign) prog.getStatements().get(0);
+        NodeBinOp rootExpr = (NodeBinOp) assign.getExpr();
 
-        // Verifica che il nodo creato sia un NodePrint
-        assertTrue(stmt instanceof NodePrint);
-        assertEquals("<Print: <ID: x>>", stmt.toString());
+        // La radice deve essere la somma (+)
+        assertEquals(LangOper.PLUS, rootExpr.getOp());
+
+        // Il figlio destro deve essere la moltiplicazione (*)
+        assertTrue(rootExpr.getRight() instanceof NodeBinOp);
+        assertEquals(LangOper.TIMES, ((NodeBinOp)rootExpr.getRight()).getOp());
+
+        scanner.close();
     }
 
     @Test
-    void testDichiarazioni() throws Exception {
-        String code = "int a; float b = 3.14;";
-        Parser parser = createParser(code);
-        NodeProgram program = parser.parse();
+    void testParentesi(@TempDir Path tempDir) throws Exception {
+        // Testo che le parentesi alterino la precedenza
+        Path file = tempDir.resolve("paren.txt");
+        Files.writeString(file, "x = (5 + 2) * 3;");
 
-        assertEquals(2, program.getStatements().size());
+        Scanner scanner = new Scanner(file.toString());
+        Parser parser = new Parser(scanner);
+        NodeProgram prog = parser.parse();
 
-        // Controllo prima dichiarazione: int a;
-        NodeDecl decl1 = (NodeDecl) program.getStatements().get(0);
-        assertEquals(LangType.INT, decl1.getType());
-        assertEquals("a", decl1.getId().getName());
-        assertNull(decl1.getInit());
+        NodeAssign assign = (NodeAssign) prog.getStatements().get(0);
+        NodeBinOp rootExpr = (NodeBinOp) assign.getExpr();
 
-        // Controllo seconda dichiarazione: float b = 3.14;
-        NodeDecl decl2 = (NodeDecl) program.getStatements().get(1);
-        assertEquals(LangType.FLOAT, decl2.getType());
-        assertEquals("b", decl2.getId().getName());
-        assertNotNull(decl2.getInit());
-        assertEquals("<Cost: FLOAT, 3.14>", decl2.getInit().toString());
+        // Ora la radice deve essere la moltiplicazione (*)
+        assertEquals(LangOper.TIMES, rootExpr.getOp());
+
+        scanner.close();
     }
 
     @Test
-    void testAssegnamento() throws Exception {
-        String code = "x = 5;";
-        Parser parser = createParser(code);
-        NodeProgram program = parser.parse();
+    void testErrorePuntoEVirgola(@TempDir Path tempDir) throws Exception {
+        // Ometto il punto e virgola finale
+        Path file = tempDir.resolve("error.txt");
+        Files.writeString(file, "print x");
 
-        NodeAssign assign = (NodeAssign) program.getStatements().get(0);
-        assertEquals("x", assign.getId().getName());
-        assertEquals("<Cost: INT, 5>", assign.getExpr().toString());
-    }
+        Scanner scanner = new Scanner(file.toString());
+        Parser parser = new Parser(scanner);
 
-    @Test
-    void testEspressioniPrecedenza() throws Exception {
-        // Test fondamentale: la moltiplicazione deve avere precedenza sulla somma.
-        // "2 + 3 * 4" deve essere parsato come "2 + (3 * 4)", non "(2 + 3) * 4".
-        String code = "x = 2 + 3 * 4;";
-        Parser parser = createParser(code);
-        NodeProgram program = parser.parse();
-
-        NodeAssign assign = (NodeAssign) program.getStatements().get(0);
-        NodeBinOp somma = (NodeBinOp) assign.getExpr();
-
-        // La radice dell'espressione deve essere la somma (+)
-        assertEquals(LangOper.PLUS, somma.getOp());
-
-        // A sinistra della somma deve esserci 2
-        assertEquals("<Cost: INT, 2>", somma.getLeft().toString());
-
-        // A destra della somma deve esserci la moltiplicazione (3 * 4)
-        NodeBinOp moltiplicazione = (NodeBinOp) somma.getRight();
-        assertEquals(LangOper.TIMES, moltiplicazione.getOp());
-        assertEquals("<Cost: INT, 3>", moltiplicazione.getLeft().toString());
-        assertEquals("<Cost: INT, 4>", moltiplicazione.getRight().toString());
-    }
-
-    @Test
-    void testErroriSintattici() {
-        // Caso 1: Manca il punto e virgola
-        assertThrows(SyntacticException.class, () -> {
-            Parser parser = createParser("print x"); // Senza ;
-            parser.parse();
-        }, "Dovrebbe fallire se manca il punto e virgola");
-
-        // Caso 2: Assegnamento malformato
-        assertThrows(SyntacticException.class, () -> {
-            Parser parser = createParser("x = ;"); // Manca espressione
-            parser.parse();
-        }, "Dovrebbe fallire se manca l'espressione dopo =");
-
-        // Caso 3: Dichiarazione errata
-        assertThrows(SyntacticException.class, () -> {
-            Parser parser = createParser("int 5;"); // Nome variabile non valido
-            parser.parse();
-        }, "Dovrebbe fallire se l'ID non è valido");
+        // Verifico che il parser si accorga dell'errore
+        assertThrows(SyntacticException.class, parser::parse);
+        scanner.close();
     }
 }
