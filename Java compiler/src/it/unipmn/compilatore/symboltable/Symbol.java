@@ -8,61 +8,66 @@ import it.unipmn.compilatore.exceptions.SyntacticException;
  * <p>
  * Ogni simbolo mantiene le informazioni semantiche di una variabile:
  * 1. Il tipo (INT o FLOAT).
- * 2. L'offset (indirizzo di memoria relativo) per la generazione del codice bytecode.
+ * 2. Il registro (un carattere 'a'-'z') utilizzato come indirizzo di memoria in dc.
  * </p>
  */
 public class Symbol {
 
     private final LangType type;
-    private final int offset;
+    private final char register;
 
     /**
      * Costruttore principale per creare un simbolo completo.
      *
-     * @param type   Il tipo della variabile (INT o FLOAT).
-     * @param offset L'indirizzo di memoria assegnato alla variabile.
+     * @param type     Il tipo della variabile (INT o FLOAT).
+     * @param register Il carattere che identifica il registro di memoria in dc.
      */
-    public Symbol(LangType type, int offset) {
+    public Symbol(LangType type, char register) {
         // Verifico che il tipo sia valido prima di creare l'oggetto
         if (type == null) {
             throw new SyntacticException("Mancata dichiarazione del tipo");
         }
 
         this.type = type;
-        this.offset = offset;
+        this.register = register;
     }
 
     /**
      * Costruttore di supporto per la fase di analisi semantica (Type Checking).
      * <p>
-     * In questa fase l'offset non è ancora rilevante, quindi lo inizializzo a -1.
-     * Richiamo il costruttore principale per centralizzare la logica di controllo.
+     * In questa fase il registro fisico non è ancora rilevante, quindi lo inizializzo
+     * con il carattere nullo ('\0').
      * </p>
      *
      * @param type Il tipo della variabile.
      */
     public Symbol(LangType type) {
-        this(type, -1);
+        // Richiamo il costruttore principale passando un carattere nullo come placeholder
+        this(type, '\0');
     }
 
     /**
      * Restituisce il tipo della variabile.
+     *
+     * @return Il tipo (INT o FLOAT).
      */
     public LangType getType() {
         return type;
     }
 
     /**
-     * Restituisce l'offset (indirizzo di memoria) della variabile.
-     * Necessario per la fase di generazione del codice.
+     * Restituisce il registro associato alla variabile.
+     * Necessario per la fase di generazione del codice dc (es. 'a', 'b').
+     *
+     * @return Il carattere identificativo del registro.
      */
-    public int getOffset() {
-        return offset;
+    public char getRegister() {
+        return register;
     }
 
     @Override
     public String toString() {
-        // Aggiungo l'offset alla rappresentazione stringa per facilitare il debug
-        return "Symbol{type=" + type + ", offset=" + offset + "}";
+        // Includo il registro nella rappresentazione stringa per facilitare il debug
+        return "Symbol{type=" + type + ", register=" + register + "}";
     }
 }

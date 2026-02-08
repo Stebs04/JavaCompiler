@@ -5,36 +5,34 @@ import it.unipmn.compilatore.symboltable.Symbol;
 import it.unipmn.compilatore.symboltable.SymbolTable;
 
 /**
- * Visitatore che genera il codice Bytecode (Assembly Jasmin) per la JVM.
+ * Visitatore che genera il codice per la calcolatrice a stack 'dc' (Desk Calculator).
  * <p>
- * Percorro l'AST e traduco ogni nodo in istruzioni leggibili dalla Java Virtual Machine.
- * Gestisco l'assegnazione della memoria (offset) per le variabili, la manipolazione dello stack
- * e la selezione delle istruzioni corrette in base al tipo di dato (INT o FLOAT).
+ * Percorro l'AST e traduco ogni nodo in comandi per la calcolatrice dc.
+ * Gestisco l'assegnazione dei registri (lettere 'a'-'z') per le variabili e
+ * la sequenza di operazioni in Notazione Polacca Inversa (RPN).
  * </p>
  */
 public class CodeGeneratorVisitor implements IVisitor {
 
     private StringBuilder sb;
     private SymbolTable scopes;
-    private int nextOffset;
-    /** Traccia il tipo dell'ultima espressione valutata sullo stack */
-    private LangType lastType;
+    private char nextRegister;
 
     /**
      * Inizializzo il generatore di codice.
-     * Imposto l'offset iniziale a 0 per la prima variabile locale.
+     * Imposto il registro iniziale al carattere 'a'.
      */
     public CodeGeneratorVisitor() {
         this.sb = new StringBuilder();
         this.scopes = new SymbolTable();
-        this.nextOffset = 0;
-        this.lastType = LangType.INT; // Valore di default
+        // In dc usiamo i registri a, b, c... quindi parto da 'a'
+        this.nextRegister = 'a';
     }
 
     /**
-     * Restituisce la stringa contenente l'intero codice Assembly generato.
+     * Restituisce la stringa contenente l'intero codice dc generato.
      *
-     * @return Il codice Jasmin pronto per essere salvato su file.
+     * @return Il codice pronto per essere salvato su file.
      */
     public String getCode() {
         return sb.toString();
@@ -42,158 +40,105 @@ public class CodeGeneratorVisitor implements IVisitor {
 
     @Override
     public void visit(NodeProgram node) {
-        // Scrivo l'intestazione standard richiesta dal formato Jasmin per definire una classe
-        sb.append(".class public Main\n");
-        sb.append(".super java/lang/Object\n");
-        sb.append(".method public static main([Ljava/lang/String;)V\n");
+        // Imposto la precisione decimale a 20 cifre (comando 'k') per supportare i float
+        sb.append("20 k\n");
 
-        // Definisco i limiti dello stack (operandi) e delle variabili locali
-        sb.append(".limit locals 100\n");
-        sb.append(".limit stack 100\n");
-
-        // Itero su tutte le istruzioni del programma per generare il relativo bytecode
+        // Itero su tutte le istruzioni del programma
         for (NodeAST stmt : node.getStatements()) {
             stmt.accept(this);
         }
-
-        // Chiudo il metodo main con l'istruzione di ritorno e la direttiva di fine
-        sb.append("return\n");
-        sb.append(".end method\n");
     }
 
     @Override
     public void visit(NodeDecl node) {
-        // Assegno un nuovo offset univoco alla variabile e incremento il contatore per la successiva
-        Symbol symbol = new Symbol(node.getType(), nextOffset++);
+        // Creo un nuovo simbolo associando il tipo e il prossimo registro disponibile
+        Symbol symbol = new Symbol(node.getType(), nextRegister++);
 
-        // Inserisco il simbolo nella tabella per poter recuperare il suo indirizzo (offset) in seguito
+        // Inserisco il simbolo nella tabella per tracciare l'associazione nome-registro
         scopes.insert(node.getId().getName(), symbol);
 
-        // Se è presente un'inizializzazione, genero il codice per calcolarla
+        // Se è presente un'inizializzazione, calcolo il valore e lo salvo nel registro
         if (node.getInit() != null) {
-            // Visito l'espressione: questo lascerà il risultato in cima allo stack
+            // Visito l'espressione di inizializzazione che lascia il risultato sullo stack principale
             node.getInit().accept(this);
 
-            // Prelevo il valore dallo stack e lo salvo nella variabile locale all'indirizzo specifico
-            if (node.getType() == LangType.INT) {
-                // istore: salva un intero dallo stack alla variabile locale X
-                sb.append("istore ").append(symbol.getOffset()).append("\n");
-            } else if (node.getType() == LangType.FLOAT) {
-                // fstore: salva un float dallo stack alla variabile locale X
-                sb.append("fstore ").append(symbol.getOffset()).append("\n");
-            }
+            // Genero il comando 's' (store) seguito dal registro assegnato per salvare il valore
+            sb.append("s").append(symbol.getRegister()).append("\n");
         }
     }
 
     @Override
     public void visit(NodeCost node) {
-        // Carico una costante numerica sullo stack (ldc = Load Constant)
-        sb.append("ldc ").append(node.getValue()).append("\n");
+        String value = node.getValue();
 
-        // Aggiorno il tipo corrente per le operazioni successive
-        this.lastType = node.getType();
+        // Converto il segno meno standard (-) nel formato richiesto da dc (_)
+        if (value.startsWith("-")) {
+            value = "_" + value.substring(1);
+        }
+
+        // Aggiungo il valore allo stream seguito da uno spazio per separarlo dai comandi successivi
+        sb.append(value).append(" ");
     }
 
     @Override
     public void visit(NodeId node) {
-        // Recupero le informazioni sulla variabile (in particolare l'offset) dalla tabella
+        // Recupero il simbolo associato alla variabile dalla tabella
         Symbol symbol = scopes.lookup(node.getName());
 
-        // Carico il valore della variabile locale sullo stack
-        if (symbol.getType() == LangType.INT) {
-            // iload: carica un intero dalla variabile locale X allo stack
-            sb.append("iload ").append(symbol.getOffset()).append("\n");
-        } else if (symbol.getType() == LangType.FLOAT) {
-            // fload: carica un float dalla variabile locale X allo stack
-            sb.append("fload ").append(symbol.getOffset()).append("\n");
-        }
-
-        // Aggiorno il tipo corrente in base alla variabile letta
-        this.lastType = symbol.getType();
+        // Genero il comando 'l' (load) seguito dal registro per copiare il valore sullo stack
+        sb.append("l").append(symbol.getRegister()).append(" ");
     }
 
     @Override
     public void visit(NodeAssign node) {
-        // Recupero l'offset della variabile destinazione
+        // Recupero il simbolo della variabile a cui assegnare il valore
         Symbol symbol = scopes.lookup(node.getId().getName());
 
-        // Genero il codice per l'espressione a destra (il risultato finirà sullo stack)
+        // Visito l'espressione a destra dell'uguale per mettere il risultato sullo stack
         node.getExpr().accept(this);
 
-        // Salvo il valore presente sullo stack nella variabile locale corrispondente
-        if (symbol.getType() == LangType.INT) {
-            sb.append("istore ").append(symbol.getOffset()).append("\n");
-        } else if (symbol.getType() == LangType.FLOAT) {
-            sb.append("fstore ").append(symbol.getOffset()).append("\n");
-        }
+        // Genero il comando 's' (store) per prelevare il valore dallo stack e salvarlo nel registro
+        sb.append("s").append(symbol.getRegister()).append("\n");
     }
 
     @Override
     public void visit(NodePrint node) {
-        // Carico sullo stack il campo statico 'out' di System (oggetto PrintStream)
-        sb.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n");
-
-        // Recupero il simbolo per sapere dove leggere il valore da stampare
+        // Recupero il simbolo della variabile da stampare
         Symbol symbol = scopes.lookup(node.getId().getName());
 
-        if (symbol.getType() == LangType.INT) {
-            // Carico l'intero sullo stack
-            sb.append("iload ").append(symbol.getOffset()).append("\n");
-            // Invoco il metodo println che accetta un Intero (I) e restituisce Void (V)
-            sb.append("invokevirtual java/io/PrintStream/println(I)V\n");
-        } else if (symbol.getType() == LangType.FLOAT) {
-            // Carico il float sullo stack
-            sb.append("fload ").append(symbol.getOffset()).append("\n");
-            // Invoco il metodo println che accetta un Float (F) e restituisce Void (V)
-            sb.append("invokevirtual java/io/PrintStream/println(F)V\n");
-        }
+        // Carico il valore dal registro allo stack
+        sb.append("l").append(symbol.getRegister()).append("\n");
+
+        // Genero il comando 'p' per stampare il valore in cima allo stack (senza rimuoverlo)
+        sb.append("p\n");
+
+        // Genero il comando 'si' per rimuovere il valore stampato dallo stack (pop nel registro 'i')
+        // Questo mantiene lo stack pulito
+        sb.append("si\n");
     }
 
     @Override
     public void visit(NodeBinOp node) {
-        // Genero il codice per l'operando sinistro (il valore va sullo stack)
+        // Visito l'operando sinistro (push sullo stack)
         node.getLeft().accept(this);
-        // Memorizzo il tipo dell'operando sinistro per decidere l'istruzione successiva
-        LangType type = this.lastType;
 
-        // Genero il codice per l'operando destro (il valore va sopra il sinistro sullo stack)
+        // Visito l'operando destro (push sullo stack sopra il sinistro)
         node.getRight().accept(this);
 
-        // Seleziono l'istruzione aritmetica in base al tipo (INT o FLOAT)
-        if (type == LangType.FLOAT) {
-            switch (node.getOp()) {
-                case PLUS:
-                    sb.append("fadd\n"); // Somma float
-                    break;
-                case MINUS:
-                    sb.append("fsub\n"); // Sottrazione float
-                    break;
-                case TIMES:
-                    sb.append("fmul\n"); // Moltiplicazione float
-                    break;
-                case DIVIDE:
-                    sb.append("fdiv\n"); // Divisione float
-                    break;
-            }
-        } else {
-            // Default: INT
-            switch (node.getOp()) {
-                case PLUS:
-                    sb.append("iadd\n"); // Somma intera
-                    break;
-                case MINUS:
-                    sb.append("isub\n"); // Sottrazione intera
-                    break;
-                case TIMES:
-                    sb.append("imul\n"); // Moltiplicazione intera
-                    break;
-                case DIVIDE:
-                    sb.append("idiv\n"); // Divisione intera
-                    break;
-            }
+        // Appendo l'operatore aritmetico corrispondente; dc gestisce automaticamente int e float
+        switch (node.getOp()) {
+            case PLUS:
+                sb.append("+\n");
+                break;
+            case MINUS:
+                sb.append("-\n");
+                break;
+            case TIMES:
+                sb.append("*\n");
+                break;
+            case DIVIDE:
+                sb.append("/\n");
+                break;
         }
-
-        // Il risultato dell'operazione mantiene lo stesso tipo degli operandi
-        this.lastType = type;
     }
 }
