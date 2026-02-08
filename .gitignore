@@ -24,4 +24,7 @@ bin/
 target/
 
 # File di prova
-.txt
+*.txt
+!programma.txt
+
+/out
