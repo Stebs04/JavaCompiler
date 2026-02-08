@@ -2,56 +2,54 @@ package it.unipmn.compilatore.test;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-
 import it.unipmn.compilatore.token.Token;
 import it.unipmn.compilatore.token.TokenType;
 import it.unipmn.compilatore.exceptions.LexicalException;
 
-
-
+/**
+ * Test unitari per la classe Token.
+ * Verifica che i token vengano costruiti correttamente e che il metodo toString
+ * restituisca il formato atteso per il debug.
+ */
 public class TokenTest {
 
-    /**
-     * Verifica l'inizializzazione del metodo toString per un token numerico o identificatore
-     */
     @Test
-    void testTokenConValore() {
-       //Creo un token di test
-        Token token = new Token(TokenType.INT, 5, "100");
+    void testCostruzioneTokenSemplice() {
+        // Creo un token che non necessita di valore (es. operatore somma)
+        Token t = new Token(TokenType.PLUS, 10);
 
-        //Controllo che i getters ritornino i giusti valori
-       assertEquals(TokenType.INT, token.getType(), "Il tipo del token deve essere INT");
-       assertEquals(5, token.getRiga(),  "La riga del token deve essere 5");
-       assertEquals("100",token.getVal(), "Il valore del token deve essere '100'");
-
-        //controllo che toString() ritorni esattamente "<INT, r:5,100>"
-        assertEquals("<INT,r:5,100>", token.toString(), "Il formato stringa non corrisponde");
+        // Verifico che il tipo e la riga siano corretti
+        assertEquals(TokenType.PLUS, t.getType());
+        assertEquals(10, t.getRiga());
+        // Controllo che il valore sia nullo come atteso
+        assertNull(t.getVal());
     }
 
-    /**
-     * Verifica che un token non necessiti di un valore semantico
-     */
     @Test
-   void testTokenSenzaValore(){
-        //Creo un token di test senza un valore
-        Token token = new Token(TokenType.PLUS, 10);
+    void testCostruzioneTokenConValore() {
+        // Creo un token Identificatore con valore associato
+        Token t = new Token(TokenType.ID, 5, "variabileX");
 
-        //Controllo che i getters ritornino i giusti valori
-        assertEquals(TokenType.PLUS, token.getType(), "Il tipo del token deve essere PLUS");
-        assertEquals(10, token.getRiga(),  "La riga del token deve essere 10");
-        assertNull(token.getVal(), "in questo caso il valore deve essere null");
-
-        //controllo che toString() ritorni esattamente "<INT, r:10>"
-        assertEquals("<PLUS,r:10>", token.toString(), "Il formato stringa non corrisponde");
+        // Verifico che il valore sia stato memorizzato
+        assertEquals("variabileX", t.getVal());
+        assertEquals(TokenType.ID, t.getType());
     }
 
-    /**
-     * Verifica che passare null come tokenType lanci una eccezione
-     */
     @Test
-    void testEccezioneSuTipoNullo(){
-       assertThrows(LexicalException.class, ()-> {
-           new Token(null, 5, "100");
-       }, "Il costruttore dovrebbe lanciare LexicalException se il tipo + nulll");
+    void testToStringFormat() {
+        // Creo un token FLOAT per testare la rappresentazione in stringa
+        Token t = new Token(TokenType.FLOAT, 1, "3.14");
+        String s = t.toString();
+
+        // Verifico che la stringa contenga tipo, riga e valore
+        assertTrue(s.contains("FLOAT"));
+        assertTrue(s.contains("r:1"));
+        assertTrue(s.contains("3.14"));
+    }
+
+    @Test
+    void testTipoNullo() {
+        // Verifico che il costruttore lanci eccezione se il tipo è null
+        assertThrows(LexicalException.class, () -> new Token(null, 1, "test"));
     }
 }

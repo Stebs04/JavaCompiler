@@ -6,6 +6,7 @@ import it.unipmn.compilatore.ast.*;
  * Visitor concreto che serve a "stampare" l'AST ricostruendo il codice sorgente.
  * <p>
  * È molto utile per il debug: permette di verificare se il Parser ha costruito
+ * correttamente l'albero e se il TypeChecker ha inserito le conversioni.
  * </p>
  */
 public class PrintASTVisitor implements IVisitor {
@@ -26,7 +27,6 @@ public class PrintASTVisitor implements IVisitor {
         for (NodeAST stmt : node.getStatements()) {
             sb.append("  "); // Aggiungo un po' di indentazione per bellezza
             // Dico all'istruzione figlia di accettarmi.
-            // Sarà lei a richiamare il metodo visit() specifico per il suo tipo (es. visit(NodePrint)).
             stmt.accept(this);
             sb.append("\n"); // A capo dopo ogni istruzione
         }
@@ -94,5 +94,17 @@ public class PrintASTVisitor implements IVisitor {
         }
 
         sb.append(";");
+    }
+
+    @Override
+    public void visit(NodeConvert node) {
+        // Stampo la conversione esplicita per visualizzarla nel debug (es. (float) 5)
+        sb.append("(");
+        if (node.getTargetType() == LangType.INT) sb.append("int");
+        else if (node.getTargetType() == LangType.FLOAT) sb.append("float");
+        sb.append(") ");
+
+        // Visito l'espressione originale che è stata convertita
+        node.getExpr().accept(this);
     }
 }
