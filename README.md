@@ -114,8 +114,18 @@ Input (programma.txt)
 ```Java
 int a = 10;
 float b = 2.5;
-b = b + a;  // 'a' viene convertito implicitamente in float
-print b;
+int c;
+
+c = a * 2 + 5;
+print c;
+
+float d;
+d = b + 1.5;
+print d;
+
+int x = 100;
+x = x / 2;
+print x;
 ```
 Outuput generato (out.dc)
 ```Bash
@@ -127,7 +137,9 @@ lb p si     (Carica b, Stampa, Pulisci stack)
 ```
 Output console (dc)
 ```Bash
-12.5
+25
+4.0
+50.00000000000000000000
 ```
 ---
 ## ✅ Testing
@@ -137,4 +149,5 @@ Il progetto include una suite di test completa. Per compilare ed eseguire i test
 javac -cp "lib/junit-platform-console-standalone.jar;bin" ...
 ```
 Nota: Si consiglia di eseguire i test tramite un IDE come IntelliJ IDEA o Eclipse importando il progetto.
+
 
