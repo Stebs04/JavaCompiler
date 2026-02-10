@@ -3,7 +3,7 @@
 **Autore:** 👤 Bellan Stefano  
 **Matricola:** 🆔 20054330  
 **Corso:** Fondamenti di Linguaggi e Traduttori  
-**Anno Accademico:** 2024/2025
+**Anno Accademico:** 2025/2026
 
 ---
 
@@ -137,3 +137,4 @@ Il progetto include una suite di test completa. Per compilare ed eseguire i test
 javac -cp "lib/junit-platform-console-standalone.jar;bin" ...
 ```
 Nota: Si consiglia di eseguire i test tramite un IDE come IntelliJ IDEA o Eclipse importando il progetto.
+
