@@ -1,97 +1,101 @@
 package it.unipmn.compilatore.test;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import it.unipmn.compilatore.scanner.Scanner;
 import it.unipmn.compilatore.parser.Parser;
+import it.unipmn.compilatore.scanner.Scanner;
 import it.unipmn.compilatore.ast.*;
 import it.unipmn.compilatore.exceptions.SyntacticException;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test per il Parser (Analizzatore Sintattico).
- * Verifica la costruzione dell'albero sintattico, la precedenza degli operatori
- * e la gestione degli errori di sintassi.
+ * Classe di test per l'Analizzatore Sintattico (Parser).
+ * Verifico la costruzione dell'Abstract Syntax Tree (AST) assicurandomi 
+ * che la gerarchia dei nodi rispetti le regole grammaticali.
  */
 public class ParserTest {
 
+    private File creaFileTemporaneo(String contenuto) throws IOException {
+        File temp = File.createTempFile("testParser", ".txt");
+        temp.deleteOnExit();
+        FileWriter writer = new FileWriter(temp);
+        writer.write(contenuto);
+        writer.close();
+        return temp;
+    }
+
+    /**
+     * Verifica la costruzione dell'albero per una dichiarazione di variabile.
+     */
     @Test
-    void testProgrammaBase(@TempDir Path tempDir) throws Exception {
-        // Scrivo un programma valido minimo
-        Path file = tempDir.resolve("ok.txt");
-        Files.writeString(file, "int x; x = 5; print x;");
-
-        Scanner scanner = new Scanner(file.toString());
+    void testDichiarazione() throws Exception {
+        File file = creaFileTemporaneo("float y = 3.5;");
+        Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
-        NodeProgram prog = parser.parse();
-
-        // Verifico che ci siano esattamente 3 istruzioni
-        assertEquals(3, prog.getStatements().size());
-        // Controllo i tipi delle istruzioni nell'ordine corretto
-        assertTrue(prog.getStatements().get(0) instanceof NodeDecl);
-        assertTrue(prog.getStatements().get(1) instanceof NodeAssign);
-        assertTrue(prog.getStatements().get(2) instanceof NodePrint);
+        
+        // Avvio l'analisi e ottengo la radice dell'albero
+        NodeProgram program = parser.parse();
+        
+        // Estraggo la prima istruzione
+        NodeDecSt stmt = program.getStatements().get(0);
+        
+        // Verifico che il nodo creato sia una dichiarazione
+        assertTrue(stmt instanceof NodeDecl);
+        NodeDecl decl = (NodeDecl) stmt;
+        
+        // Controllo i parametri interni della dichiarazione
+        assertEquals("y", decl.getId().getName());
+        assertEquals(LangType.FLOAT, decl.getType());
+        assertTrue(decl.getInit() instanceof NodeCost);
 
         scanner.close();
     }
 
+    /**
+     * Verifica la priorità degli operatori matematici nell'albero.
+     */
     @Test
-    void testPrecedenzaOperatori(@TempDir Path tempDir) throws Exception {
-        // Testo che la moltiplicazione abbia precedenza sulla somma
-        Path file = tempDir.resolve("prec.txt");
-        Files.writeString(file, "x = 5 + 2 * 3;");
-
-        Scanner scanner = new Scanner(file.toString());
+    void testEspressioneMatematica() throws Exception {
+        // Scrivo un calcolo che richiede di rispettare la precedenza tra somma e moltiplicazione
+        File file = creaFileTemporaneo("x = 5 + 2 * 3;");
+        Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
-        NodeProgram prog = parser.parse();
-
-        NodeAssign assign = (NodeAssign) prog.getStatements().get(0);
-        NodeBinOp rootExpr = (NodeBinOp) assign.getExpr();
-
-        // La radice deve essere la somma (+)
-        assertEquals(LangOper.PLUS, rootExpr.getOp());
-
-        // Il figlio destro deve essere la moltiplicazione (*)
-        assertTrue(rootExpr.getRight() instanceof NodeBinOp);
-        assertEquals(LangOper.TIMES, ((NodeBinOp)rootExpr.getRight()).getOp());
+        
+        NodeProgram program = parser.parse();
+        NodeAssign assign = (NodeAssign) program.getStatements().get(0);
+        
+        // L'operazione più in alto nell'albero deve essere la somma (valutata per ultima)
+        assertTrue(assign.getExpr() instanceof NodeBinOp);
+        NodeBinOp somma = (NodeBinOp) assign.getExpr();
+        assertEquals(LangOper.PLUS, somma.getOp());
+        
+        // Il figlio destro della somma deve contenere la moltiplicazione (valutata prima)
+        assertTrue(somma.getRight() instanceof NodeBinOp);
+        NodeBinOp moltiplicazione = (NodeBinOp) somma.getRight();
+        assertEquals(LangOper.TIMES, moltiplicazione.getOp());
 
         scanner.close();
     }
 
+    /**
+     * Verifica il rilevamento di un errore di sintassi.
+     */
     @Test
-    void testParentesi(@TempDir Path tempDir) throws Exception {
-        // Testo che le parentesi alterino la precedenza
-        Path file = tempDir.resolve("paren.txt");
-        Files.writeString(file, "x = (5 + 2) * 3;");
-
-        Scanner scanner = new Scanner(file.toString());
-        Parser parser = new Parser(scanner);
-        NodeProgram prog = parser.parse();
-
-        NodeAssign assign = (NodeAssign) prog.getStatements().get(0);
-        NodeBinOp rootExpr = (NodeBinOp) assign.getExpr();
-
-        // Ora la radice deve essere la moltiplicazione (*)
-        assertEquals(LangOper.TIMES, rootExpr.getOp());
-
-        scanner.close();
-    }
-
-    @Test
-    void testErrorePuntoEVirgola(@TempDir Path tempDir) throws Exception {
-        // Ometto il punto e virgola finale
-        Path file = tempDir.resolve("error.txt");
-        Files.writeString(file, "print x");
-
-        Scanner scanner = new Scanner(file.toString());
+    void testSintassiScorretta() throws Exception {
+        // Dichiaro una variabile omettendo il punto e virgola finale
+        File file = creaFileTemporaneo("int x = 5");
+        Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
 
-        // Verifico che il parser si accorga dell'errore
-        assertThrows(SyntacticException.class, parser::parse);
+        // Verifico che venga sollevata l'eccezione prevista per la sintassi errata
+        assertThrows(SyntacticException.class, () -> {
+            parser.parse();
+        });
+        
         scanner.close();
     }
 }

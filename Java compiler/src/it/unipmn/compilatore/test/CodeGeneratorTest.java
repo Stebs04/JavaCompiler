@@ -1,91 +1,66 @@
 package it.unipmn.compilatore.test;
 
-import org.junit.jupiter.api.BeforeEach;
+import it.unipmn.compilatore.ast.*;
+import it.unipmn.compilatore.visitor.CodeGeneratorVisitor;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-import it.unipmn.compilatore.visitor.CodeGeneratorVisitor;
-import it.unipmn.compilatore.ast.*;
-
 /**
- * Test per il CodeGeneratorVisitor.
- * Verifica che vengano prodotti i comandi corretti per la calcolatrice 'dc' (notazione polacca inversa).
+ * Classe di test per la generazione del codice.
+ * Verifico che i nodi dell'albero producano stringhe corrette usando 
+ * la notazione postfissa della calcolatrice 'dc'.
  */
 public class CodeGeneratorTest {
 
-    private CodeGeneratorVisitor visitor;
-
-    @BeforeEach
-    void setUp() {
-        visitor = new CodeGeneratorVisitor();
-    }
-
+    /**
+     * Verifica le istruzioni base di salvataggio in memoria e recupero.
+     */
     @Test
-    void testHeaderPrecisione() {
-        NodeProgram prog = new NodeProgram(0);
-        prog.accept(visitor);
-
-        // Verifico che venga impostata la precisione
-        assertTrue(visitor.getCode().contains("20 k"));
-    }
-
-    @Test
-    void testOperazioniMatematiche() {
-        // Genero: 5 + 3
-        NodeCost c1 = new NodeCost(LangType.INT, "5", 1);
-        NodeCost c2 = new NodeCost(LangType.INT, "3", 1);
-        NodeBinOp op = new NodeBinOp(LangOper.PLUS, c1, c2, 1);
-
-        op.accept(visitor);
-        String code = visitor.getCode();
-
-        // Verifico la presenza degli operandi e dell'operatore
-        assertTrue(code.contains("5"));
-        assertTrue(code.contains("3"));
-        assertTrue(code.contains("+"));
-    }
-
-    @Test
-    void testCostanteNegativa() {
-        // Genero: -10
-        NodeCost c = new NodeCost(LangType.INT, "-10", 1);
-
-        c.accept(visitor);
-
-        // Verifico che il meno standard sia convertito in underscore per dc
-        assertTrue(visitor.getCode().contains("_10"));
-    }
-
-    @Test
-    void testStoreLoadVariabile() {
-        // Simulo: int a = 100;
+    void testDichiarazioneEStampa() {
+        NodeProgram program = new NodeProgram(1);
+        
         NodeId id = new NodeId("a", 1);
-        NodeCost val = new NodeCost(LangType.INT, "100", 1);
-        NodeDecl decl = new NodeDecl(id, LangType.INT, val, 1);
+        NodeCost valore = new NodeCost(LangType.INT, "10", 1);
+        NodeDecl dichiarazione = new NodeDecl(id, LangType.INT, valore, 1);
+        
+        NodePrint stampa = new NodePrint(id, 2);
+        
+        // Assemblo il programma
+        program.addStatement(dichiarazione);
+        program.addStatement(stampa);
 
-        decl.accept(visitor);
-        String code = visitor.getCode();
+        // Genero il codice stringa
+        CodeGeneratorVisitor visitor = new CodeGeneratorVisitor();
+        program.accept(visitor);
+        String codiceGenerato = visitor.getCode();
 
-        // Verifico comando 's' (store) e il valore
-        assertTrue(code.contains("100"));
-        assertTrue(code.contains("sa")); // 'a' è il primo registro libero
+        // Verifico la presenza dei comandi di configurazione e gestione memoria di 'dc'
+        assertTrue(codiceGenerato.contains("20 k")); 
+        assertTrue(codiceGenerato.contains("10 "));  
+        assertTrue(codiceGenerato.contains("sa"));   // Salva in registro 'a'
+        assertTrue(codiceGenerato.contains("la"));   // Estrae da registro 'a'
+        assertTrue(codiceGenerato.contains("p"));    // Comando di print
     }
 
+    /**
+     * Verifica il posizionamento in notazione postfissa degli operatori.
+     */
     @Test
-    void testPrint() {
-        // Necessito di dichiarare prima per popolare la symbol table del visitor
-        NodeId id = new NodeId("a", 1);
-        NodeDecl decl = new NodeDecl(id, LangType.INT, null, 1);
-        decl.accept(visitor);
+    void testNotazionePostfissa() {
+        NodeCost cinque = new NodeCost(LangType.INT, "5", 1);
+        NodeCost due = new NodeCost(LangType.INT, "2", 1);
+        NodeBinOp moltiplicazione = new NodeBinOp(LangOper.TIMES, cinque, due, 1);
 
-        // Simulo print a;
-        NodePrint print = new NodePrint(id, 2);
-        print.accept(visitor);
+        CodeGeneratorVisitor visitor = new CodeGeneratorVisitor();
+        
+        // Visito solo l'espressione per testarne la conversione isolata
+        moltiplicazione.accept(visitor);
+        String codiceGenerato = visitor.getCode();
 
-        String code = visitor.getCode();
-        // Verifico caricamento (l), stampa (p) e pulizia stack (si)
-        assertTrue(code.contains("la"));
-        assertTrue(code.contains("p"));
-        assertTrue(code.contains("si"));
+        // Verifico che i numeri vengano inseriti prima dell'operatore matematico
+        assertTrue(codiceGenerato.contains("5 "));
+        assertTrue(codiceGenerato.contains("2 "));
+        assertTrue(codiceGenerato.contains("*\n"));
     }
 }

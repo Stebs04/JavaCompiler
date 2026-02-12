@@ -24,6 +24,8 @@ public interface IVisitor {
 
     void visit(NodeId node);
 
-    // Gestisco la visita del nodo di conversione
+ 
     void visit(NodeConvert node);
+    
+    void visit(NodeDeref node);
 }

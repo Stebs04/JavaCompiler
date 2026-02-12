@@ -1,21 +1,20 @@
 package it.unipmn.compilatore.exceptions;
 
 /**
- * Rappresenta un'eccezione che si verifica durante la fase di analisi lessicale (Scanner).
- * <p>
- * Questa eccezione viene sollevata quando lo Scanner incontra un carattere o una sequenza
- * di caratteri che non corrisponde a nessun pattern valido definito per i token del linguaggio.
- * </p>
+ * Classe che rappresenta un errore durante l'analisi lessicale (fase di Scanner).
+ * Viene utilizzata quando lo scanner legge un carattere o una stringa
+ * che non appartiene alle regole del nostro linguaggio.
  */
 public class LexicalException extends IllegalArgumentException {
 
+    private static final long serialVersionUID = 4440627002147218816L;
+
     /**
-     * Costruisce una nuova LexicalException con un messaggio di dettaglio specifico.
-     *
-     * @param message Una descrizione dell'errore, che dovrebbe includere il motivo del fallimento
-     * (es. "Carattere illegale") e, se possibile, il numero di riga.
+     * Costruttore dell'eccezione lessicale.
+     * @param message Il messaggio testuale che descrive l'errore trovato (es. riga e carattere sconosciuto).
      */
     public LexicalException(String message) {
+        // Passo il messaggio di errore alla superclasse per gestirne la memorizzazione e la stampa a video
         super(message);
     }
 }

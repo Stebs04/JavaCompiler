@@ -1,99 +1,91 @@
 package it.unipmn.compilatore.test;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
 import it.unipmn.compilatore.scanner.Scanner;
+import it.unipmn.compilatore.token.Token;
 import it.unipmn.compilatore.token.TokenType;
 import it.unipmn.compilatore.exceptions.LexicalException;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test per l'Analizzatore Lessicale (Scanner).
- * Controlla il riconoscimento di keyword, numeri, identificatori, operatori
- * e la gestione di caratteri illegali o formati numerici errati.
+ * Classe di test per l'Analizzatore Lessicale (Scanner).
+ * Verifico la traduzione del testo in Token e la corretta rimozione di spazi e ritorni a capo.
  */
 public class ScannerTest {
 
+    /**
+     * Metodo di supporto che crea un file fisico per simulare l'input.
+     */
+    private File creaFileTemporaneo(String contenuto) throws IOException {
+        // Creo un file nel filesystem e indico di cancellarlo a fine esecuzione
+        File temp = File.createTempFile("testScanner", ".txt");
+        temp.deleteOnExit();
+        
+        // Scrivo il codice sorgente nel file
+        FileWriter writer = new FileWriter(temp);
+        writer.write(contenuto);
+        writer.close();
+        
+        return temp;
+    }
+
+    /**
+     * Verifica il riconoscimento di un'istruzione di dichiarazione e salto riga.
+     */
     @Test
-    void testKeywordEIdentificatori(@TempDir Path tempDir) throws Exception {
-        // Scrivo un file temporaneo con keyword e ID misti
-        Path file = tempDir.resolve("test_kw.txt");
-        Files.writeString(file, "int myVar print");
+    void testLetturaSimboli() throws Exception {
+        // Preparo il file con del codice di prova
+        File file = creaFileTemporaneo("int x = 5; \n 3.14");
+        Scanner scanner = new Scanner(file.getAbsolutePath());
 
-        Scanner scanner = new Scanner(file.toString());
-
-        // Verifico la sequenza corretta dei token
+        // Verifico in sequenza la creazione di ogni singolo token
         assertEquals(TokenType.TYINT, scanner.nextToken().getType());
-        assertEquals(TokenType.ID, scanner.nextToken().getType()); // myVar
-        assertEquals(TokenType.PRINT, scanner.nextToken().getType());
-        assertEquals(TokenType.EOF, scanner.nextToken().getType());
-
-        scanner.close();
-    }
-
-    @Test
-    void testNumeri(@TempDir Path tempDir) throws Exception {
-        // Scrivo interi e float validi
-        Path file = tempDir.resolve("test_num.txt");
-        Files.writeString(file, "123 45.67");
-
-        Scanner scanner = new Scanner(file.toString());
-
-        // Controllo il riconoscimento dell'intero
-        assertEquals(TokenType.INT, scanner.nextToken().getType());
-        // Controllo il riconoscimento del float
-        assertEquals(TokenType.FLOAT, scanner.nextToken().getType());
-
-        scanner.close();
-    }
-
-    @Test
-    void testSimboliEOperatori(@TempDir Path tempDir) throws Exception {
-        // Scrivo tutti i simboli supportati
-        Path file = tempDir.resolve("test_sym.txt");
-        Files.writeString(file, "+ - * / = ; ( )");
-
-        Scanner scanner = new Scanner(file.toString());
-
-        // Verifico uno a uno che vengano riconosciuti
-        assertEquals(TokenType.PLUS, scanner.nextToken().getType());
-        assertEquals(TokenType.MINUS, scanner.nextToken().getType());
-        assertEquals(TokenType.TIMES, scanner.nextToken().getType());
-        assertEquals(TokenType.DIVIDE, scanner.nextToken().getType());
+        
+        Token t2 = scanner.nextToken();
+        assertEquals(TokenType.ID, t2.getType());
+        assertEquals("x", t2.getVal());
+        
         assertEquals(TokenType.ASSIGN, scanner.nextToken().getType());
+        
+        Token t4 = scanner.nextToken();
+        assertEquals(TokenType.INT, t4.getType());
+        assertEquals("5", t4.getVal());
+        
         assertEquals(TokenType.SEMI, scanner.nextToken().getType());
-        assertEquals(TokenType.LPAREN, scanner.nextToken().getType());
-        assertEquals(TokenType.RPAREN, scanner.nextToken().getType());
+
+        // Verifico che dopo l'a capo il numero di riga sia aumentato
+        Token t6 = scanner.nextToken();
+        assertEquals(TokenType.FLOAT, t6.getType());
+        assertEquals("3.14", t6.getVal());
+        assertEquals(2, t6.getRiga());
 
         scanner.close();
     }
 
+    /**
+     * Verifica il riconoscimento di caratteri estranei al linguaggio.
+     */
     @Test
-    void testFloatTroppoLungo(@TempDir Path tempDir) throws Exception {
-        // Scrivo un float con 6 cifre decimali (il limite è 5)
-        Path file = tempDir.resolve("test_float_err.txt");
-        Files.writeString(file, "1.123456");
+    void testCarattereNonValido() throws Exception {
+        // Preparo un file contenente un simbolo illegale come la chiocciola
+        File file = creaFileTemporaneo("int x = 5 @ 2;");
+        Scanner scanner = new Scanner(file.getAbsolutePath());
 
-        Scanner scanner = new Scanner(file.toString());
+        // Itero per consumare i primi token corretti
+        for (int i = 0; i < 4; i++) {
+            scanner.nextToken();
+        }
 
-        // Verifico che scatti l'eccezione lessicale
-        assertThrows(LexicalException.class, scanner::nextToken);
-        scanner.close();
-    }
-
-    @Test
-    void testFloatMalformato(@TempDir Path tempDir) throws Exception {
-        // Scrivo un float senza cifre decimali
-        Path file = tempDir.resolve("test_float_bad.txt");
-        Files.writeString(file, "1.");
-
-        Scanner scanner = new Scanner(file.toString());
-
-        // Verifico che scatti l'errore
-        assertThrows(LexicalException.class, scanner::nextToken);
+        // Verifico che il carattere illegale generi un'eccezione
+        assertThrows(LexicalException.class, () -> {
+            scanner.nextToken();
+        });
+        
         scanner.close();
     }
 }

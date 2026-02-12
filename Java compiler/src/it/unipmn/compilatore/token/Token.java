@@ -1,61 +1,56 @@
 package it.unipmn.compilatore.token;
 
 import it.unipmn.compilatore.exceptions.LexicalException;
-import org.junit.platform.commons.function.Try;
 
 /**
- * La classe {@code Token} rappresenta l'unità lessicale minima identificata dallo Scanner durante
- * l'analisi del codice sorgente.
- * <p>
- * Ogni token memorizza informazioni fondamentali per le fasi successive della compilazione:
- * <ul>
- * <li>Il tipo del token (definito nell'enumerazione {@link TokenType}).</li>
- * <li>La riga del file sorgente in cui il token è stato trovato (utile per la segnalazione errori).</li>
- * <li>L'eventuale valore semantico associato (es. il valore numerico per costanti o il nome per identificatori).</li>
- * </ul>
- * La classe è progettata per essere immutabile.
+ * Classe che rappresenta un Token, ovvero l'unità logica minima 
+ * riconosciuta dallo Scanner leggendo il codice sorgente.
+ * Ogni token memorizza il suo tipo, la riga in cui è stato trovato 
+ * e un eventuale valore testuale (utile per numeri e nomi di variabili).
  */
 public class Token {
 
+    // La riga del file in cui lo scanner ha trovato questo token
     private final int riga;
+    // Il tipo del token (es. ID, INT, PLUS) definito nell'enumerazione
     private final TokenType type;
+    // Il testo originale estratto (es. "3.14" o "somma")
     private final String val;
 
     /**
-     * Costruttore principale per la creazione di un Token completo.
-     * Viene utilizzato per token che possiedono un valore semantico, come identificatori (ID)
-     * o costanti numeriche (INT, FLOAT).
-     *
-     * @param type Il tipo del token (non può essere null).
-     * @param riga Il numero di riga nel file sorgente dove inizia il token.
-     * @param val  Il valore testuale associato al token (es. "100", "pippo").
-     * @throws LexicalException Se viene passato un tipo nullo (errore interno dello scanner).
+     * Costruttore completo per creare un Token che possiede un valore.
+     * Lo uso per i numeri e gli identificatori (variabili) dove il testo letto è importante.
+     * @param type Il tipo del token.
+     * @param riga Il numero di riga.
+     * @param val Il valore testuale associato.
+     * @throws LexicalException Se il tipo passato è nullo.
      */
     public Token(TokenType type, int riga, String val) {
-        //Controllo di sicurezza
-        if(type == null){
+        // Verifico per sicurezza che il tipo non sia nullo
+        if(type == null) {
             throw new LexicalException("Il tipo non deve essere nullo");
         }
+        
+        // Salvo tutte le informazioni che descrivono questo token
         this.type = type;
         this.val = val;
         this.riga = riga;
     }
 
     /**
-     * Costruttore semplificato per token che non necessitano di un valore associato.
-     * Viene utilizzato per parole chiave (es. PRINT), operatori (es. PLUS) e delimitatori (es. SEMI),
-     * dove il tipo stesso è sufficiente a identificare il token.
-     *
+     * Costruttore semplificato per creare un Token senza un valore specifico.
+     * Lo uso per i simboli (come ; + -) e le parole chiave (come print), 
+     * perché il loro tipo basta già a identificarli completamente.
      * @param type Il tipo del token.
-     * @param riga Il numero di riga nel file sorgente.
+     * @param riga Il numero di riga.
      */
-    public Token(TokenType type, int riga){
+    public Token(TokenType type, int riga) {
+        // Richiamo il costruttore principale passando null come valore testuale
         this(type, riga, null);
     }
 
     /**
-     * Restituisce il numero di riga in cui appare il token.
-     *
+     * Restituisce il numero di riga del token.
      * @return Il numero della riga.
      */
     public int getRiga() {
@@ -63,35 +58,33 @@ public class Token {
     }
 
     /**
-     * Restituisce la tipologia del token.
-     *
-     * @return L'elemento dell'enum {@link TokenType} corrispondente.
+     * Restituisce la categoria a cui appartiene il token.
+     * @return Il tipo (TokenType).
      */
     public TokenType getType() {
         return type;
     }
 
     /**
-     * Restituisce il valore semantico del token, se presente.
-     *
-     * @return La stringa rappresentante il valore (es. "3.14"), oppure {@code null} se il token non ha valore.
+     * Restituisce il testo esatto estratto per questo token, se esiste.
+     * @return La stringa del valore, oppure null se non serve.
      */
     public String getVal() {
         return val;
     }
 
     /**
-     * Restituisce una rappresentazione testuale del token, formattata secondo le specifiche
-     * del corso per facilitare il debugging.
-     * Formato: &lt;TIPO, r:RIGA, valore&gt; oppure &lt;TIPO,r:RIGA&gt;
-     *
-     * @return La stringa formattata del token.
+     * Crea una stringa testuale che rappresenta il token.
+     * Serve molto durante le fasi di debug per stampare a video cosa ha letto lo scanner.
      */
     @Override
     public String toString() {
+        // Controllo se il token ha un valore salvato
         if (val != null) {
+            // Restituisco la versione completa con tipo, riga e valore
             return "<" + type + ",r:" + riga + "," + val + ">";
         }
+        // Altrimenti restituisco solo il tipo e la riga
         return "<" + type + ",r:" + riga + ">";
     }
 }
