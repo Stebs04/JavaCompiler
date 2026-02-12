@@ -12,35 +12,34 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Analizzatore lessicale del compilatore.
- * <p>
- * Legge il file sorgente carattere per carattere e produce una sequenza di Token.
- * Gestisce l'eliminazione dei caratteri di spaziatura e il riconoscimento
- * di numeri, identificatori, parole chiave e simboli.
- * </p>
+ * Classe che implementa l'analizzatore lessicale (Scanner).
+ * Legge il file di testo sorgente carattere per carattere e raggruppa 
+ * i caratteri in entità logiche chiamate Token (parole chiave, numeri, simboli).
  */
 public class Scanner {
 
-    // Caratteri da ignorare (spazi, tabulazioni, a capo)
+    // Definisco i caratteri di spaziatura che lo scanner deve ignorare
     private static final String SKIP_CHARS = " \t\n\r";
 
     private final String fileName;
+    // Uso un PushbackReader per poter "rimettere dentro" i caratteri letti in eccesso
     private final PushbackReader buffer;
     private int riga;
     private final Map<String, TokenType> keywordsMap;
 
     /**
-     * Inizializza lo scanner aprendo il file e preparando la mappa delle parole chiave.
-     *
-     * @param fileName Percorso del file sorgente.
-     * @throws FileNotFoundException Se il file non esiste.
+     * Costruttore dello scanner.
+     * Prepara il file per la lettura e inizializza il dizionario delle parole riservate.
+     * @param fileName Il percorso del file di testo da compilare.
+     * @throws FileNotFoundException Se il file specificato non viene trovato.
      */
     public Scanner(String fileName) throws FileNotFoundException {
         this.buffer = new PushbackReader(new FileReader(fileName));
         this.fileName = fileName;
+        // Inizializzo il contatore delle righe partendo dalla prima
         this.riga = 1;
 
-        // Popolo la mappa delle parole riservate per distinguerle dagli identificatori
+        // Popolo la mappa associando ogni stringa riservata al suo tipo di Token corrispondente
         this.keywordsMap = new HashMap<>();
         this.keywordsMap.put("print", TokenType.PRINT);
         this.keywordsMap.put("int", TokenType.TYINT);
@@ -48,14 +47,15 @@ public class Scanner {
     }
 
     /**
-     * Restituisce la riga corrente per la gestione degli errori.
+     * Restituisce il numero della riga attualmente in lettura.
+     * @return Il numero di riga.
      */
     public int getRiga() {
         return riga;
     }
 
     /**
-     * Chiude il buffer di lettura per liberare le risorse.
+     * Chiude il flusso di lettura del file liberando la memoria.
      */
     public void close() {
         try {
@@ -66,53 +66,53 @@ public class Scanner {
     }
 
     /**
-     * Analizza il prossimo token dal flusso di input.
-     * <p>
-     * Itera per saltare gli spazi bianchi e identifica il tipo di token in base
-     * al primo carattere significativo incontrato.
-     * </p>
-     *
-     * @return Il prossimo Token valido.
-     * @throws LexicalException Se incontra caratteri non validi.
+     * Estrae e restituisce il prossimo Token valido dal file.
+     * Salta automaticamente tutti gli spazi bianchi e riconosce la categoria 
+     * del Token guardando il primo carattere utile.
+     * @return L'oggetto Token costruito.
+     * @throws LexicalException Se viene letto un carattere non appartenente al linguaggio.
      */
     public Token nextToken() throws LexicalException {
         try {
             int next;
 
-            // Itero per consumare i caratteri di skip (spazi) finché non trovo qualcosa di utile
+            // Itero per consumare tutti gli spazi bianchi e gli a capo prima del prossimo token
             while (true) {
                 next = buffer.read();
 
                 if (next == -1) {
+                    // Restituisco il token speciale End Of File se il file è terminato
                     return new Token(TokenType.EOF, riga);
                 }
 
                 char c = (char) next;
 
-                // Controllo se il carattere è tra quelli da saltare
+                // Verifico se il carattere letto fa parte di quelli da saltare
                 if (SKIP_CHARS.indexOf(c) != -1) {
                     if (c == '\n') {
-                        riga++; // Incremento il contatore righe se vado a capo
+                        // Incremento il contatore quando incontro un carattere di a capo
+                        riga++; 
                     }
                 } else {
-                    break; // Trovato un carattere significativo, esco dal ciclo
+                    // Ho trovato un carattere significativo, interrompo la lettura degli spazi
+                    break; 
                 }
             }
 
             char c = (char) next;
 
-            // Se è una cifra, avvio la scansione di un numero
             if (Character.isDigit(c)) {
-                buffer.unread(next); // Rimetto il carattere nel buffer per scanNumber
+                // Rimetto il primo numero nel buffer per farlo elaborare per intero da scanNumber
+                buffer.unread(next); 
                 return scanNumber();
             }
-            // Se è una lettera, avvio la scansione di un identificatore o parola chiave
             else if (Character.isLetter(c)) {
+                // Rimetto la prima lettera nel buffer per delegare la costruzione a scanId
                 buffer.unread(next);
                 return scanId();
             }
 
-            // Gestisco i simboli singoli tramite uno switch
+            // Associo direttamente i simboli composti da un solo carattere al loro Token
             switch (c) {
                 case ';': return new Token(TokenType.SEMI, riga);
                 case '/': return new Token(TokenType.DIVIDE, riga);
@@ -120,7 +120,6 @@ public class Scanner {
                 case '-': return new Token(TokenType.MINUS, riga);
                 case '+': return new Token(TokenType.PLUS, riga);
                 case '=': return new Token(TokenType.ASSIGN, riga);
-                // Aggiungo la gestione delle parentesi tonde
                 case '(': return new Token(TokenType.LPAREN, riga);
                 case ')': return new Token(TokenType.RPAREN, riga);
                 default:
@@ -133,38 +132,46 @@ public class Scanner {
     }
 
     /**
-     * Esegue la scansione di un numero intero o float.
+     * Costruisce un token di tipo numerico, distinguendo tra interi e decimali.
+     * @return Il Token numerico (INT o FLOAT).
+     * @throws LexicalException Se il formato del numero decimale non è corretto.
      */
     private Token scanNumber() throws LexicalException {
+        // Uso StringBuilder per accumulare progressivamente le cifre del numero
         StringBuilder sb = new StringBuilder();
         int next;
 
         try {
-            // Itero per leggere la parte intera del numero
+            // Itero per estrarre tutte le cifre che compongono la parte intera del numero
             while (true) {
                 next = buffer.read();
                 if (next == -1) break;
+                
                 char c = (char) next;
                 if (Character.isDigit(c)) {
+                    // Aggiungo la cifra alla stringa in costruzione
                     sb.append(c);
                 } else {
+                    // Non è più una cifra, esco dal ciclo
                     break;
                 }
             }
 
-            // Verifico se c'è il punto decimale per trattarlo come float
+            // Verifico se il numero ha una virgola (punto), il che lo rende un float
             if (next != -1 && (char) next == '.') {
                 sb.append('.');
                 int decimalDigits = 0;
 
-                // Itero per leggere la parte decimale
+                // Itero per leggere tutte le cifre della parte decimale
                 while (true) {
                     next = buffer.read();
                     if (next == -1) break;
+                    
                     char c = (char) next;
                     if (Character.isDigit(c)) {
                         decimalDigits++;
-                        // Controllo di precisione massima (opzionale ma realistico)
+                        
+                        // Limito la precisione massima a 5 cifre decimali
                         if (decimalDigits > 5) {
                             throw new LexicalException("Errore Lessicale alla riga " + riga + ": I numeri float non possono avere più di 5 cifre decimali.");
                         }
@@ -174,16 +181,16 @@ public class Scanner {
                     }
                 }
 
-                // Controllo che ci sia almeno una cifra dopo il punto
                 if (decimalDigits == 0) {
                     throw new LexicalException("Errore Lessicale alla riga " + riga + ": Formato float non valido (attese cifre decimali).");
                 }
 
+                // Rimetto nel buffer l'ultimo carattere letto perché non fa parte del numero
                 if (next != -1) buffer.unread(next);
                 return new Token(TokenType.FLOAT, riga, sb.toString());
 
             } else {
-                // Se non c'è il punto, è un intero
+                // Rimetto nel buffer l'ultimo carattere e restituisco il numero come intero
                 if (next != -1) buffer.unread(next);
                 return new Token(TokenType.INT, riga, sb.toString());
             }
@@ -194,33 +201,39 @@ public class Scanner {
     }
 
     /**
-     * Esegue la scansione di un identificatore o parola chiave.
+     * Costruisce un token testuale analizzando se si tratta di una variabile o di una parola chiave.
+     * @return Il Token testuale (ID o parola chiave).
      */
     private Token scanId() throws LexicalException {
         StringBuilder sb = new StringBuilder();
         int next;
 
         try {
-            // Itero per leggere lettere o numeri (un ID può contenere numeri ma non iniziare con essi)
+            // Itero per estrarre lettere o numeri che formano l'identificatore
             while (true) {
                 next = buffer.read();
                 if (next == -1) break;
+                
                 char c = (char) next;
                 if (Character.isLetterOrDigit(c)) {
                     sb.append(c);
                 } else {
+                    // Il nome è terminato, esco dal ciclo
                     break;
                 }
             }
 
+            // Rimetto nel buffer il carattere che ha fatto interrompere il ciclo
             if (next != -1) buffer.unread(next);
 
+            // Converto i caratteri accumulati in una parola finale
             String word = sb.toString();
 
-            // Controllo se la parola letta è una parola chiave riservata
+            // Interrogo la mappa per scoprire se la parola appena letta ha un significato speciale
             if (keywordsMap.containsKey(word)) {
                 return new Token(keywordsMap.get(word), riga);
             } else {
+                // Altrimenti, la considero come un normale nome di variabile
                 return new Token(TokenType.ID, riga, word);
             }
 

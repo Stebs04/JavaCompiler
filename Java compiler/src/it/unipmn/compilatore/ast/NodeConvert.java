@@ -3,40 +3,54 @@ package it.unipmn.compilatore.ast;
 import it.unipmn.compilatore.visitor.IVisitor;
 
 /**
- * Nodo speciale per la conversione di tipo (Casting).
- * <p>
- * Rappresento un nodo che non viene generato dal parser, ma inserito
- * dinamicamente durante l'analisi semantica per gestire la promozione
- * dei tipi (es. da INT a FLOAT).
- * </p>
+ * Classe che rappresenta un nodo speciale per la conversione di tipo (Casting).
+ * Questo nodo non viene creato direttamente dal parser leggendo il file, 
+ * ma viene inserito dinamicamente durante il controllo semantico (Type Checking) 
+ * per gestire la promozione implicita dei tipi (ad esempio trasformare un int in float).
  */
-public class NodeConvert extends NodeAST {
-    private final NodeAST expr;
+public class NodeConvert extends NodeExpr {
+    
+    // L'espressione originale che deve essere convertita di tipo
+    private final NodeExpr expr;
+    // Il nuovo tipo che l'espressione deve assumere al termine della conversione
     private final LangType targetType;
 
     /**
-     * Costruisco il nodo di conversione avvolgendo l'espressione originale.
-     *
-     * @param expr L'espressione da convertire.
-     * @param targetType Il tipo di destinazione.
+     * Costruttore del nodo di conversione.
+     * Avvolge l'espressione originale per forzarne il cambio di tipo.
+     * @param expr L'espressione matematica o il valore da convertire.
+     * @param targetType Il tipo finale desiderato (es. LangType.FLOAT).
      */
-    public NodeConvert(NodeAST expr, LangType targetType) {
-        // Inizializzo il nodo padre recuperando la riga dall'espressione originale
+    public NodeConvert(NodeExpr expr, LangType targetType) {
+        // Estraggo la riga dall'espressione originale e la passo alla superclasse per mantenere il riferimento
         super(expr.getRiga());
         this.expr = expr;
         this.targetType = targetType;
     }
 
-    public NodeAST getExpr() {
+    /**
+     * Restituisce l'espressione racchiusa nel nodo di conversione.
+     * @return Il nodo NodeExpr originale.
+     */
+    public NodeExpr getExpr() {
         return expr;
     }
 
+    /**
+     * Restituisce il tipo di destinazione della conversione.
+     * @return Il tipo LangType (es. FLOAT).
+     */
     public LangType getTargetType() {
         return targetType;
     }
 
+    /**
+     * Permette al visitor di ispezionare questo nodo dell'albero.
+     * @param visitor Il visitor in esecuzione.
+     */
     @Override
     public void accept(IVisitor visitor) {
+        // Invoco la visita specifica per il nodo di conversione
         visitor.visit(this);
     }
 }

@@ -28,3 +28,5 @@ target/
 !programma.txt
 
 /out
+
+*.dc

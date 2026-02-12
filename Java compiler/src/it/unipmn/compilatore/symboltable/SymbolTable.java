@@ -5,80 +5,84 @@ import java.util.Map;
 import java.util.Stack;
 
 /**
- * Gestisce la tabella dei simboli organizzata a stack per supportare gli scope (ambiti di visibilità).
- * <p>
- * Utilizzo uno Stack di Mappe: l'elemento in cima rappresenta lo scope più interno (locale),
- * mentre quello in fondo rappresenta lo scope globale.
- * </p>
+ * Classe che gestisce la tabella dei simboli organizzata a stack.
+ * Serve per supportare gli scope, ovvero gli ambiti di visibilità delle variabili.
+ * Utilizzo uno stack di mappe: la mappa in cima rappresenta lo scope più interno (locale),
+ * mentre la mappa in fondo rappresenta lo scope globale.
  */
 public class SymbolTable {
 
+    // Stack che contiene le mappe di variabili per ogni livello di scope
     private final Stack<Map<String, Symbol>> scopes;
 
     /**
-     * Costruisce la Symbol Table.
-     * Inizializzo la struttura dati e attivo immediatamente lo scope globale.
+     * Costruttore della Symbol Table.
+     * Prepara la struttura dati e attiva subito il primo livello, ovvero lo scope globale.
      */
     public SymbolTable() {
         this.scopes = new Stack<>();
+        // Creo subito il primo scope richiamando il metodo apposito
         enterScope();
     }
 
     /**
-     * Entra in un nuovo scope.
-     * Creo una nuova mappa vuota per le variabili locali e la inserisco in cima allo stack.
+     * Apre un nuovo ambito di visibilità (scope locale).
      */
     public void enterScope() {
+        // Creo una nuova mappa vuota per le variabili di questo livello e la metto in cima allo stack
         scopes.push(new HashMap<>());
     }
 
     /**
-     * Esce dallo scope corrente.
-     * Rimuovo la mappa in cima allo stack per "dimenticare" le variabili locali,
-     * ma solo se non sto rimuovendo l'ultimo livello (scope globale).
+     * Chiude l'ambito di visibilità corrente.
      */
     public void exitScope() {
+        // Rimuovo la mappa in cima allo stack per dimenticare le variabili locali
+        // Lo faccio solo se non sto eliminando lo scope globale (che deve restare sempre)
         if (scopes.size() > 1) {
             scopes.pop();
         }
     }
 
     /**
-     * Inserisce una nuova variabile nello scope corrente.
-     *
-     * @param name   Il nome della variabile.
-     * @param symbol L'oggetto Simbolo contenente i metadati.
-     * @return true se l'inserimento ha successo, false se la variabile esisteva già in questo scope.
+     * Inserisce una nuova variabile nello scope attualmente attivo.
+     * @param name Il nome della variabile.
+     * @param symbol L'oggetto Symbol che contiene le informazioni della variabile.
+     * @return true se l'inserimento è andato a buon fine, false se la variabile esisteva già in questo scope.
      */
     public boolean insert(String name, Symbol symbol) {
-        // Recupero la mappa dello scope corrente (senza rimuoverla)
+        // Leggo la mappa che si trova in cima allo stack senza toglierla
         Map<String, Symbol> currentScope = scopes.peek();
 
-        // Controllo se il nome è già presente nel livello corrente
+        // Controllo se in questo specifico livello esiste già una variabile con questo nome
         if (currentScope.containsKey(name)) {
             return false;
         }
 
-        // Inserisco la variabile nella mappa corrente
+        // Inserisco la nuova variabile nella mappa del livello corrente
         currentScope.put(name, symbol);
         return true;
     }
 
     /**
-     * Cerca una variabile attiva in qualsiasi scope visibile.
-     * Itero lo stack partendo dallo scope corrente (cima) scendendo verso quello globale (fondo).
-     *
+     * Cerca una variabile partendo dallo scope più interno fino a quello globale.
      * @param name Il nome della variabile da cercare.
-     * @return Il simbolo associato se trovato, null altrimenti.
+     * @return Il simbolo associato se la variabile viene trovata, altrimenti null.
      */
     public Symbol lookup(String name) {
-        // Scorro lo stack all'indietro per rispettare la regola di visibilità (il più vicino vince)
+        // Itero lo stack all'indietro partendo dalla cima verso il fondo
         for (int i = scopes.size() - 1; i >= 0; i--) {
+            
+            // Prendo la mappa del livello corrispondente
             Map<String, Symbol> scope = scopes.get(i);
+            
+            // Se la variabile è in questa mappa, restituisco il suo simbolo
             if (scope.containsKey(name)) {
                 return scope.get(name);
             }
         }
+        
+        // Se finisco il ciclo e non ho trovato nulla in nessuno scope, restituisco null
         return null;
     }
 }
