@@ -1,153 +1,150 @@
-# 🎓 Progetto Compilatore - Fondamenti di Linguaggi e Traduttori
+# 🎓 Compiler Project - Fondamenti di Linguaggi e Traduttori
 
-**Autore:** 👤 Bellan Stefano  
-**Matricola:** 🆔 20054330  
-**Corso:** Fondamenti di Linguaggi e Traduttori  
-**Anno Accademico:** 2025/2026
-
----
-
-## 📄 Descrizione del Progetto
-
-Questo progetto implementa un compilatore completo in **Java** per un linguaggio imperativo personalizzato. Il compilatore analizza il codice sorgente attraverso una pipeline classica e traduce le istruzioni nel linguaggio per la calcolatrice a pila **`dc`** (desk calculator).
-
-### 🚀 Funzionalità Principali
-* **Tipi di Dato:** Supporto per interi (`int`) e virgola mobile (`float`).
-* **Variabili:** Dichiarazione, inizializzazione e assegnamento (mappate sui registri `a`-`z` di `dc`).
-* **Operazioni:** Aritmetica di base (`+`, `-`, `*`, `/`) con gestione della precedenza.
-* **Type System:**
-    * Controllo dei tipi (Type Checking).
-    * **Casting Implicito:** Conversione automatica da `int` a `float` nelle espressioni miste.
-* **IO:** Comando `print` per stampare i risultati.
+**Autore:** Stefano Bellan  
+**Matricola:** 20054330  
+**Anno Accademico:** 2025/2026  
+**Linguaggio:** Java 
 
 ---
 
-## 📂 Struttura del Progetto
+## 📖 Descrizione
+Questo progetto consiste nello sviluppo di un **compilatore completo** per un linguaggio imperativo personalizzato ("acro-language"). Il compilatore traduce il codice sorgente in istruzioni per **`dc` (desk calculator)**, una calcolatrice a stack a notazione polacca inversa (RPN) disponibile sui sistemi Unix/Linux.
 
-Di seguito è riportato l'albero completo dei file sorgente con una breve descrizione del loro ruolo nel compilatore.
+Il sistema copre l'intera pipeline di compilazione:
+1.  **Analisi Lessicale (Scanner):** Tokenizzazione dell'input.
+2.  **Analisi Sintattica (Parser):** Costruzione dell'Abstract Syntax Tree (AST) tramite discesa ricorsiva.
+3.  **Analisi Semantica (Type Checker):** Controllo dei tipi, gestione degli scope e **Casting Implicito** (promozione automatica da `int` a `float`).
+4.  **Generazione Codice (Backend):** Traduzione dell'AST nel linguaggio target `dc`.
 
-```text
-20054330Compiler/
-├── 📄 programma.txt                # File sorgente di esempio per testare il compilatore
-├── 📄 integration_test.txt         # File usato per i test di integrazione
-├── ⚙️ out.dc                       # File di output generato (codice per dc)
-│
-└── ☕ Java compiler/src/it/unipmn/compilatore/
-    │
-    ├── 🚀 Compiler.java            # Main Class: orchestra Scanner, Parser, TypeChecker e CodeGenerator
-    │
-    ├── 📦 scanner/                 # ANALISI LESSICALE
-    │   └── Scanner.java            # Tokenizza l'input gestendo numeri, ID, keyword e commenti
-    │
-    ├── 📦 token/                   # DEFINIZIONE TOKEN
-    │   ├── Token.java              # Rappresenta l'unità lessicale (tipo, valore, riga)
-    │   └── TokenType.java          # Enum dei tipi di token (INT, FLOAT, PRINT, PLUS, ecc.)
-    │
-    ├── 📦 parser/                  # ANALISI SINTATTICA
-    │   └── Parser.java             # Parser a discesa ricorsiva, costruisce l'AST
-    │
-    ├── 📦 ast/                     # ABSTRACT SYNTAX TREE (Nodi dell'albero)
-    │   ├── NodeAST.java            # Classe astratta base per tutti i nodi
-    │   ├── NodeProgram.java        # Nodo radice: contiene la lista di istruzioni
-    │   ├── NodeDecl.java           # Dichiarazione variabili (es. int a = 5;)
-    │   ├── NodeAssign.java         # Assegnamento (es. a = 10;)
-    │   ├── NodeBinOp.java          # Operazioni binarie (es. a + b)
-    │   ├── NodeCost.java           # Costanti numeriche (Interi o Float)
-    │   ├── NodeId.java             # Identificatori di variabile
-    │   ├── NodePrint.java          # Istruzione di stampa (print x;)
-    │   ├── NodeConvert.java        # Nodo speciale iniettato per il casting (Int -> Float)
-    │   ├── LangType.java           # Enum tipi primitivi (INT, FLOAT)
-    │   └── LangOper.java           # Enum operatori (+, -, *, /)
-    │
-    ├── 📦 visitor/                 # PATTERN VISITOR (Attraversamento AST)
-    │   ├── IVisitor.java           # Interfaccia comune per i visitor
-    │   ├── TypeCheckVisitor.java   # Analisi Semantica: controlla tipi e inietta conversioni
-    │   ├── CodeGeneratorVisitor.java # Genera il codice target per 'dc'
-    │   └── PrintASTVisitor.java    # Utility per stampare l'AST (debug)
-    │
-    ├── 📦 symboltable/             # TABELLA DEI SIMBOLI
-    │   ├── SymbolTable.java        # Gestisce gli scope (stack di hashmap)
-    │   └── Symbol.java             # Info variabile (Tipo e Registro fisico)
-    │
-    ├── 📦 exceptions/              # GESTIONE ERRORI
-    │   ├── LexicalException.java   # Errori dello Scanner (caratteri invalidi)
-    │   └── SyntacticException.java # Errori del Parser o Semantici
-    │
-    └── 🧪 test/                    # UNIT TESTING (JUnit)
-        ├── ScannerTest.java        # Test tokenizzazione
-        ├── ParserTest.java         # Test grammatica e precedenza
-        ├── ASTTest.java            # Test costruzione nodi
-        ├── TypeCheckTest.java      # Test controlli semantici e casting
-        ├── CodeGeneratorTest.java  # Test generazione istruzioni dc
-        ├── SymbolTableTest.java    # Test visibilità variabili
-        ├── TokenTest.java          # Test struttura token
-        └── CompilerTest.java       # Test End-to-End
+---
+
+## 🚀 Funzionalità del Linguaggio
+
+### Tipi di Dato Supportati
+* **`int`**: Numeri interi (es. `5`, `-10`).
+* **`float`**: Numeri in virgola mobile (es. `3.14`, `0.5`).
+    * *Nota:* Precisione fissata a 5 cifre decimali nello Scanner e 20 cifre nel codice `dc` generato.
+
+### Caratteristiche Principali
+* **Dichiarazione Variabili**: `int a;` o `float b;`.
+* **Inizializzazione**: `int a = 10;`.
+* **Assegnamento**: `a = 5 + 2;`.
+* **Espressioni Matematiche**: Supporto per `+`, `-`, `*`, `/` con gestione della precedenza operatori e parentesi `(...)`.
+* **Type System**:
+    * Strong typing (non si possono assegnare float a int).
+    * **Coercizione Implicita**: Un `int` viene convertito automaticamente in `float` se usato in operazioni miste (es. `float x = 5 + 2.5;` → `5` diventa `5.0`).
+* **Output**: Istruzione `print variable;` per stampare il valore a video.
+
+---
+
+## 🏗️ Architettura del Software
+
+Il progetto segue rigorosamente i principi dell'ingegneria del software, utilizzando il **Visitor Pattern** per separare la logica (controllo tipi, generazione codice) dalla struttura dati (nodi dell'AST).
+
+### Struttura dei Package
+* `it.unipmn.compilatore.scanner`: Gestisce la lettura del file e la creazione dei `Token`.
+* `it.unipmn.compilatore.parser`: Implementa la grammatica e costruisce l'albero `NodeProgram`.
+* `it.unipmn.compilatore.ast`: Definisce i nodi dell'albero (es. `NodeBinOp`, `NodeDecl`, `NodeId`).
+* `it.unipmn.compilatore.symboltable`: Gestisce gli scope e la memorizzazione dei simboli (Tipo e Registro `dc`).
+* `it.unipmn.compilatore.visitor`: Contiene la logica operativa:
+    * `TypeCheckVisitor`: Valida i tipi e inietta nodi `NodeConvert` nell'AST per i cast.
+    * `CodeGeneratorVisitor`: Traduce l'AST in comandi `dc` (es. `sa`, `la`, `p`).
+    * `PrintASTVisitor`: Utility per visualizzare la struttura dell'albero a fini di debug.
+
+---
+
+## 💻 Esempio di Sintassi e Compilazione
+
+### Codice Sorgente (`programma.txt`)
+```java
+int a = 10;
+float b = 2.5;
+float result;
+
+// Esempio di espressione mista con conversione implicita
+result = a + b * 2.0;
+
+print result;
+```
+### Codice Target Generato (out.dc)
+Il compilatore mappa le variabili sui registri di dc (es. a -> registro a, b -> registro b).
+```bash
+20 k           # Imposta precisione a 20 cifre
+10 sa          # Store '10' in registro 'a'
+2.5 sb         # Store '2.5' in registro 'b'
+la lb 2.0 * +  # Carica a, Carica b, Moltiplica per 2.0, Somma
+s3             # Salva risultato nel registro temporaneo (es. 'c')
+l3 p si        # Carica 'c', Stampa (p), Pulisci stack (si)
 ```
 ---
-## 🛠️ Istruzioni per Compilazione ed Esecuzione
-Assicurarsi di avere Java JDK installato. I comandi vanno eseguiti dalla cartella radice del progetto.
+## 🛠️ Istruzioni per l'Uso
+Prerequisiti
+Java JDK 11+ installato.
 
-1. Compilazione
-Compila tutti i file sorgente e posiziona i .class in una cartella bin.
+dc: Interprete desk calculator (preinstallato su Linux/macOS, disponibile su Windows via WSL o Git Bash).
 
-```Bash
+1. Compilazione del Progetto
+Dalla cartella radice del progetto, eseguire:
+```bash
+# Crea la cartella per i file compilati
 mkdir -p bin
+
+# Compila tutti i sorgenti Java
 javac -d bin -sourcepath "Java compiler/src" "Java compiler/src/it/unipmn/compilatore/Compiler.java"
 ```
-2. Esecuzione del Compilatore
-Esegui il compilatore passando il file sorgente come argomento (default: programma.txt).
 
-```Bash
+2. Esecuzione del Compilatore
+Per compilare un file di testo (es. programma.txt):
+```bash
 java -cp bin it.unipmn.compilatore.Compiler programma.txt
 ```
-Se la compilazione ha successo, verrà creato il file out.dc.
 
-3. Esecuzione del Codice Generato (dc)
-Per eseguire il programma compilato è necessario l'interprete dc (standard su Linux/macOS, disponibile su Windows via WSL o Git Bash).
+Se non viene specificato alcun file, il compilatore cercherà di default programma.txt.
 
-```Bash
+Se la compilazione ha successo, verrà generato il file out.dc.
+
+3. Esecuzione del Programma Compilato
+Per eseguire il codice generato usando l'interprete dc:
+```bash
 dc -f out.dc
 ```
 ---
-## 💻 Esempio di Utilizzo
-Input (programma.txt)
-```Java
-int a = 10;
-float b = 2.5;
-int c;
 
-c = a * 2 + 5;
-print c;
+## ✅ Testing (JUnit)
+Il progetto include una suite completa di Unit Test e Integration Test per garantire la robustezza di ogni componente.
 
-float d;
-d = b + 1.5;
-print d;
+I test coprono:
 
-int x = 100;
-x = x / 2;
-print x;
-```
-Outuput generato (out.dc)
-```Bash
-20 k        (Imposta precisione a 20 cifre)
-10 sa       (Salva 10 nel registro 'a')
-2.5 sb      (Salva 2.5 nel registro 'b')
-lb la + sb  (Carica b, Carica a, Somma, Salva in b)
-lb p si     (Carica b, Stampa, Pulisci stack)
-```
-Output console (dc)
-```Bash
-25
-4.0
-50.00000000000000000000
-```
+* **ScannerTest: Riconoscimento token validi, gestione errori lessicali.**
+
+* **ParserTest: Validazione grammatica, precedenza operatori, errori sintattici.**
+
+* **TypeCheckTest: Verifica compatibilità tipi, cast impliciti, variabili non dichiarate.**
+
+* **CodeGeneratorTest: Correttezza istruzioni dc, gestione numeri negativi (es. -5 -> _5).**
+
+* **CompilerTest: Test End-to-End (Sorgente -> Output finale).**
+
+Per eseguire i test (richiede junit-platform-console-standalone.jar o un IDE come IntelliJ/Eclipse):
+
+* **Si consiglia di aprire il progetto come Progetto Maven/Gradle o importarlo in IntelliJ IDEA ed eseguire la cartella test.**
 ---
-## ✅ Testing
-Il progetto include una suite di test completa. Per compilare ed eseguire i test (richiede JUnit 5 nel classpath):
-```Bash
-# Esempio generico (classpath da adattare in base al sistema)
-javac -cp "lib/junit-platform-console-standalone.jar;bin" ...
+
+## 📂 Struttura File
 ```
-Nota: Si consiglia di eseguire i test tramite un IDE come IntelliJ IDEA o Eclipse importando il progetto.
-
-
+20054330Compiler/
+├── programma.txt               # Sorgente di esempio
+├── out.dc                      # Output compilato
+├── Java compiler/
+│   └── src/it/unipmn/compilatore/
+│       ├── Compiler.java       # Main Class
+│       ├── scanner/            # Analisi Lessicale
+│       ├── parser/             # Analisi Sintattica
+│       ├── ast/                # Definizioni Nodi AST
+│       ├── visitor/            # Logica (TypeCheck, CodeGen)
+│       ├── symboltable/        # Gestione Variabili
+│       ├── token/              # Definizioni Token
+│       ├── exceptions/         # Errori custom
+│       └── test/               # JUnit Tests
+└── README.md                   # Questo file
+```
