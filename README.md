@@ -1,4 +1,5 @@
 # 🎓 Compiler Project - Fondamenti di Linguaggi e Traduttori
+![Java](https://img.shields.io/badge/Language-Java-orange) ![JUnit](https://img.shields.io/badge/Test-JUnit%205-green) ![Target](https://img.shields.io/badge/Target-dc-lightgrey) ![Pattern](https://img.shields.io/badge/Pattern-Visitor-blue) ![IDE](https://img.shields.io/badge/IDE-IntelliJ-purple)
 
 **Autore:** Stefano Bellan  
 **Matricola:** 20054330  
@@ -148,3 +149,4 @@ Per eseguire i test (richiede junit-platform-console-standalone.jar o un IDE com
 │       └── test/               # JUnit Tests
 └── README.md                   # Questo file
 ```
+
