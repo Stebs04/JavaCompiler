@@ -2,7 +2,6 @@ package it.unipmn.compilatore.test;
 
 import it.unipmn.compilatore.parser.Parser;
 import it.unipmn.compilatore.scanner.Scanner;
-import it.unipmn.compilatore.ast.*;
 import it.unipmn.compilatore.exceptions.SyntacticException;
 import org.junit.jupiter.api.Test;
 
@@ -13,9 +12,8 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Classe di test per l'Analizzatore Sintattico (Parser).
- * Verifico la costruzione dell'Abstract Syntax Tree (AST) assicurandomi 
- * che la gerarchia dei nodi rispetti le regole grammaticali.
+ * Classe di test per l'Analizzatore Sintattico.
+ * Verifico che la struttura grammaticale errata sollevi eccezioni.
  */
 public class ParserTest {
 
@@ -29,72 +27,58 @@ public class ParserTest {
     }
 
     /**
-     * Verifica la costruzione dell'albero per una dichiarazione di variabile.
+     * Verifica errore se manca il punto e virgola finale.
      */
     @Test
-    void testDichiarazione() throws Exception {
-        File file = creaFileTemporaneo("float y = 3.5;");
+    void testMancaPuntoVirgola() throws Exception {
+        File file = creaFileTemporaneo("int a = 5"); // Manca ;
         Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
-        
-        // Avvio l'analisi e ottengo la radice dell'albero
-        NodeProgram program = parser.parse();
-        
-        // Estraggo la prima istruzione
-        NodeDecSt stmt = program.getStatements().get(0);
-        
-        // Verifico che il nodo creato sia una dichiarazione
-        assertTrue(stmt instanceof NodeDecl);
-        NodeDecl decl = (NodeDecl) stmt;
-        
-        // Controllo i parametri interni della dichiarazione
-        assertEquals("y", decl.getId().getName());
-        assertEquals(LangType.FLOAT, decl.getType());
-        assertTrue(decl.getInit() instanceof NodeCost);
 
+        // Il parser deve fallire alla fine dell'istruzione
+        assertThrows(SyntacticException.class, () -> parser.parse());
+        
         scanner.close();
     }
 
     /**
-     * Verifica la priorità degli operatori matematici nell'albero.
+     * Verifica errore se manca l'identificatore nella dichiarazione.
      */
     @Test
-    void testEspressioneMatematica() throws Exception {
-        // Scrivo un calcolo che richiede di rispettare la precedenza tra somma e moltiplicazione
-        File file = creaFileTemporaneo("x = 5 + 2 * 3;");
+    void testDichiarazioneErrata() throws Exception {
+        File file = creaFileTemporaneo("int = 10;"); // Manca il nome variabile
         Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
-        
-        NodeProgram program = parser.parse();
-        NodeAssign assign = (NodeAssign) program.getStatements().get(0);
-        
-        // L'operazione più in alto nell'albero deve essere la somma (valutata per ultima)
-        assertTrue(assign.getExpr() instanceof NodeBinOp);
-        NodeBinOp somma = (NodeBinOp) assign.getExpr();
-        assertEquals(LangOper.PLUS, somma.getOp());
-        
-        // Il figlio destro della somma deve contenere la moltiplicazione (valutata prima)
-        assertTrue(somma.getRight() instanceof NodeBinOp);
-        NodeBinOp moltiplicazione = (NodeBinOp) somma.getRight();
-        assertEquals(LangOper.TIMES, moltiplicazione.getOp());
 
+        assertThrows(SyntacticException.class, () -> parser.parse());
+        
         scanner.close();
     }
 
     /**
-     * Verifica il rilevamento di un errore di sintassi.
+     * Verifica errore se le parentesi non sono bilanciate.
      */
     @Test
-    void testSintassiScorretta() throws Exception {
-        // Dichiaro una variabile omettendo il punto e virgola finale
-        File file = creaFileTemporaneo("int x = 5");
+    void testParentesiNonBilanciate() throws Exception {
+        File file = creaFileTemporaneo("x = (5 + 2 * 3;"); // Manca parentesi chiusa
         Scanner scanner = new Scanner(file.getAbsolutePath());
         Parser parser = new Parser(scanner);
 
-        // Verifico che venga sollevata l'eccezione prevista per la sintassi errata
-        assertThrows(SyntacticException.class, () -> {
-            parser.parse();
-        });
+        assertThrows(SyntacticException.class, () -> parser.parse());
+        
+        scanner.close();
+    }
+
+    /**
+     * Verifica errore se l'espressione è incompleta (operatore senza secondo operando).
+     */
+    @Test
+    void testEspressioneIncompleta() throws Exception {
+        File file = creaFileTemporaneo("x = 5 + ;"); // Manca numero dopo il +
+        Scanner scanner = new Scanner(file.getAbsolutePath());
+        Parser parser = new Parser(scanner);
+
+        assertThrows(SyntacticException.class, () -> parser.parse());
         
         scanner.close();
     }

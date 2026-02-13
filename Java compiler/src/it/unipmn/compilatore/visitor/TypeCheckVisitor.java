@@ -9,7 +9,8 @@ import it.unipmn.compilatore.symboltable.SymbolTable;
  * Classe che implementa il visitatore semantico per il controllo dei tipi.
  * Naviga l'albero sintattico (AST) per verificare che le operazioni
  * rispettino le regole di tipo del linguaggio e gestisce le conversioni
- * implicite da intero a decimale (promozioni di tipo).
+ * implicite da intero a decimale.
+ * Mantiene un log delle operazioni svolte e degli errori riscontrati.
  */
 public class TypeCheckVisitor implements IVisitor {
 
@@ -17,13 +18,24 @@ public class TypeCheckVisitor implements IVisitor {
     private SymbolTable scopes;
     // Variabile di appoggio per propagare il tipo calcolato dal basso verso l'alto nell'albero
     private LangType lastType;
+    // StringBuilder per accumulare i log delle operazioni e degli errori
+    private StringBuilder log;
 
     /**
      * Costruttore del visitatore per il controllo dei tipi.
-     * Inizializza una nuova tabella dei simboli vuota.
+     * Inizializza una nuova tabella dei simboli vuota e il log.
      */
     public TypeCheckVisitor() {
         this.scopes = new SymbolTable();
+        this.log = new StringBuilder();
+    }
+
+    /**
+     * Restituisce il contenuto del log accumulato durante la visita.
+     * @return La stringa con la cronologia delle operazioni ed eventuali errori.
+     */
+    public String getLog() {
+        return log.toString();
     }
 
     /**
@@ -32,10 +44,12 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeProgram node) {
+        log.append("Inizio visita del Programma.\n");
         // Itero su tutte le istruzioni del programma per controllarne la semantica
         for (NodeDecSt stmt : node.getStatements()) {
             stmt.accept(this);
         }
+        log.append("Fine visita del Programma.\n");
     }
 
     /**
@@ -44,13 +58,19 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeDecl node) {
+        String varName = node.getId().getName();
+        log.append("Controllo dichiarazione variabile: ").append(varName).append("\n");
+
         // Verifico se la variabile che si sta dichiarando esiste già nella tabella dei simboli
-        if (scopes.lookup(node.getId().getName()) != null) {
-            throw new SyntacticException("Variabile '" + node.getId().getName() + "' già dichiarata.");
+        if (scopes.lookup(varName) != null) {
+            String errorMsg = "Errore: Variabile '" + varName + "' già dichiarata.";
+            log.append(errorMsg).append("\n");
+            throw new SyntacticException(errorMsg);
         }
 
         // Inserisco la nuova variabile e il suo tipo all'interno della tabella dei simboli
-        scopes.insert(node.getId().getName(), new Symbol(node.getType()));
+        scopes.insert(varName, new Symbol(node.getType()));
+        log.append("Variabile '").append(varName).append("' inserita nella Symbol Table.\n");
 
         // Se c'è un'espressione di inizializzazione associata, la analizzo
         if (node.getInit() != null) {
@@ -58,11 +78,14 @@ public class TypeCheckVisitor implements IVisitor {
 
             // Verifico se serve una conversione implicita da intero a decimale
             if (node.getType() == LangType.FLOAT && lastType == LangType.INT) {
+                log.append("Conversione implicita (Cast) da INT a FLOAT per: ").append(varName).append("\n");
                 // Creo un nodo di conversione e lo sostituisco all'espressione originale
                 NodeConvert convert = new NodeConvert(node.getInit(), LangType.FLOAT);
                 node.setInit(convert);
             } else if (node.getType() != lastType) {
-                throw new SyntacticException("Tipo non compatibile nell'inizializzazione di " + node.getId().getName());
+                String errorMsg = "Errore: Tipo non compatibile nell'inizializzazione di " + varName;
+                log.append(errorMsg).append("\n");
+                throw new SyntacticException(errorMsg);
             }
         }
     }
@@ -73,10 +96,15 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeAssign node) {
+        String varName = node.getId().getName();
+        log.append("Controllo assegnamento a: ").append(varName).append("\n");
+
         // Cerco la variabile nella tabella dei simboli per estrarre il suo tipo
-        Symbol symbol = scopes.lookup(node.getId().getName());
+        Symbol symbol = scopes.lookup(varName);
         if (symbol == null) {
-            throw new SyntacticException("Variabile non dichiarata: " + node.getId().getName());
+            String errorMsg = "Errore: Variabile non dichiarata: " + varName;
+            log.append(errorMsg).append("\n");
+            throw new SyntacticException(errorMsg);
         }
 
         // Analizzo l'espressione a destra dell'uguale per calcolarne il tipo
@@ -84,13 +112,16 @@ public class TypeCheckVisitor implements IVisitor {
 
         // Controllo se il tipo della variabile e quello dell'espressione combaciano
         if (symbol.getType() == LangType.FLOAT && lastType == LangType.INT) {
+            log.append("Conversione implicita (Cast) da INT a FLOAT nell'assegnamento a: ").append(varName).append("\n");
             // Inserisco il nodo di conversione nell'albero per trasformare l'intero in decimale
             NodeConvert convert = new NodeConvert(node.getExpr(), LangType.FLOAT);
             node.setExpr(convert);
             // Aggiorno il tipo propagato per riflettere la conversione appena eseguita
             lastType = LangType.FLOAT;
         } else if (symbol.getType() != lastType) {
-            throw new SyntacticException("Assegnazione non compatibile per " + node.getId().getName());
+            String errorMsg = "Errore: Assegnazione non compatibile per " + varName;
+            log.append(errorMsg).append("\n");
+            throw new SyntacticException(errorMsg);
         }
     }
 
@@ -100,6 +131,8 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeBinOp node) {
+        log.append("Controllo operazione binaria: ").append(node.getOp()).append("\n");
+
         // Visito il figlio sinistro e mi salvo il tipo che restituisce
         node.getLeft().accept(this);
         LangType leftType = lastType;
@@ -118,13 +151,16 @@ public class TypeCheckVisitor implements IVisitor {
 
             // Converto esplicitamente il sotto-albero sinistro se era intero
             if (leftType == LangType.INT) {
+                log.append("Cast operando sinistro a FLOAT.\n");
                 node.setLeft(new NodeConvert(node.getLeft(), LangType.FLOAT));
             }
             // Converto esplicitamente il sotto-albero destro se era intero
             if (rightType == LangType.INT) {
+                log.append("Cast operando destro a FLOAT.\n");
                 node.setRight(new NodeConvert(node.getRight(), LangType.FLOAT));
             }
         }
+        log.append("Tipo risultante operazione: ").append(lastType).append("\n");
     }
 
     /**
@@ -133,10 +169,13 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeDeref node) {
+        String varName = node.getId().getName();
         // Cerco la variabile per assicurarmi che sia stata dichiarata in precedenza
-        Symbol symbol = scopes.lookup(node.getId().getName());
+        Symbol symbol = scopes.lookup(varName);
         if (symbol == null) {
-            throw new SyntacticException("Uso di variabile non dichiarata: " + node.getId().getName());
+            String errorMsg = "Errore: Uso di variabile non dichiarata: " + varName;
+            log.append(errorMsg).append("\n");
+            throw new SyntacticException(errorMsg);
         }
         // Imposto il tipo della variabile come tipo corrente per passarlo alle operazioni superiori
         lastType = symbol.getType();
@@ -148,8 +187,7 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeId node) {
-        // L'identificatore puro non esegue operazioni qui, 
-        // in quanto la lettura dei valori è gestita direttamente da NodeDeref.
+        // L'identificatore puro non esegue operazioni qui
     }
 
     /**
@@ -168,9 +206,13 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodePrint node) {
+        String varName = node.getId().getName();
+        log.append("Controllo istruzione Print per: ").append(varName).append("\n");
         // Verifico solo che la variabile che si vuole stampare esista nella tabella dei simboli
-        if (scopes.lookup(node.getId().getName()) == null) {
-            throw new SyntacticException("Tentativo di stampa di variabile non dichiarata");
+        if (scopes.lookup(varName) == null) {
+            String errorMsg = "Errore: Tentativo di stampa di variabile non dichiarata '" + varName + "'";
+            log.append(errorMsg).append("\n");
+            throw new SyntacticException(errorMsg);
         }
     }
 
@@ -180,6 +222,7 @@ public class TypeCheckVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeConvert node) {
+        log.append("Controllo nodo conversione esplicita.\n");
         // Analizzo l'espressione racchiusa nel nodo di conversione
         node.getExpr().accept(this);
         // Il tipo risultante è forzato al tipo destinazione della conversione

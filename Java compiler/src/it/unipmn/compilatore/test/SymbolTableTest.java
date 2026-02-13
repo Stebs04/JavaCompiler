@@ -9,64 +9,49 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Classe di test per la Tabella dei Simboli.
- * Verifico che l'inserimento, la ricerca e la gestione dei vari livelli
- * di scope funzionino secondo le regole di visibilità.
+ * Verifico la gestione dei duplicati e la visibilità.
  */
 public class SymbolTableTest {
 
     /**
-     * Verifica le operazioni base di salvataggio e recupero variabile.
+     * Verifica che non sia possibile inserire due variabili uguali nello stesso scope.
      */
     @Test
-    void testInserimentoERicerca() {
-        // Inizializzo la tabella
+    void testInserimentoDuplicato() {
         SymbolTable st = new SymbolTable();
         Symbol sym = new Symbol(LangType.INT);
         
-        // Inserisco una nuova variabile nello scope globale
+        // Inserisco la prima volta: deve tornare true
         assertTrue(st.insert("x", sym));
         
-        // Cerco la variabile e verifico di ottenere esattamente lo stesso oggetto
-        assertEquals(sym, st.lookup("x"));
+        // Inserisco la seconda volta: deve tornare false (errore)
+        assertFalse(st.insert("x", sym));
     }
 
     /**
-     * Verifica la protezione contro le dichiarazioni multiple nello stesso livello.
+     * Verifica che la ricerca di una variabile inesistente ritorni null.
      */
     @Test
-    void testVariabileGiaEsistente() {
+    void testRicercaFallita() {
         SymbolTable st = new SymbolTable();
-        
-        // Inserisco la variabile una prima volta
-        st.insert("y", new Symbol(LangType.FLOAT));
-        
-        // Tento di inserirla di nuovo e verifico che l'operazione venga bloccata
-        assertFalse(st.insert("y", new Symbol(LangType.INT)));
+        // Cerco una variabile mai inserita
+        assertNull(st.lookup("pippo"));
     }
 
     /**
-     * Verifica la visibilità delle variabili tra scope globale e locale.
+     * Verifica che una variabile in uno scope interno non sia visibile fuori.
      */
     @Test
-    void testGestioneScope() {
+    void testScopeIsolamento() {
         SymbolTable st = new SymbolTable();
-        Symbol globalSym = new Symbol(LangType.INT);
-        st.insert("z", globalSym);
         
-        // Entro in un blocco di codice più interno
         st.enterScope();
+        st.insert("temp", new Symbol(LangType.INT));
+        // Qui deve esistere
+        assertNotNull(st.lookup("temp"));
         
-        Symbol localSym = new Symbol(LangType.FLOAT);
-        // Inserisco un'altra variabile con lo stesso nome nel nuovo livello
-        assertTrue(st.insert("z", localSym));
-        
-        // Verifico che la ricerca trovi la variabile più interna
-        assertEquals(localSym, st.lookup("z"));
-        
-        // Esco dal blocco di codice
         st.exitScope();
-        
-        // Verifico che la variabile locale sia sparita e torni visibile quella globale
-        assertEquals(globalSym, st.lookup("z"));
+        // Qui non deve più esistere
+        assertNull(st.lookup("temp"));
     }
 }

@@ -15,6 +15,7 @@ import java.util.Map;
  * Classe che implementa l'analizzatore lessicale (Scanner).
  * Legge il file di testo sorgente carattere per carattere e raggruppa 
  * i caratteri in entità logiche chiamate Token (parole chiave, numeri, simboli).
+ * Mantiene un log delle operazioni per il debug.
  */
 public class Scanner {
 
@@ -26,6 +27,8 @@ public class Scanner {
     private final PushbackReader buffer;
     private int riga;
     private final Map<String, TokenType> keywordsMap;
+    // StringBuilder per accumulare la storia dei token letti ed eventuali errori
+    private StringBuilder log;
 
     /**
      * Costruttore dello scanner.
@@ -38,12 +41,23 @@ public class Scanner {
         this.fileName = fileName;
         // Inizializzo il contatore delle righe partendo dalla prima
         this.riga = 1;
+        this.log = new StringBuilder();
 
         // Popolo la mappa associando ogni stringa riservata al suo tipo di Token corrispondente
         this.keywordsMap = new HashMap<>();
         this.keywordsMap.put("print", TokenType.PRINT);
         this.keywordsMap.put("int", TokenType.TYINT);
         this.keywordsMap.put("float", TokenType.TYFLOAT);
+        
+        log.append("Scanner inizializzato sul file: ").append(fileName).append("\n");
+    }
+
+    /**
+     * Restituisce il log delle operazioni lessicali.
+     * @return La stringa con i log.
+     */
+    public String getLog() {
+        return log.toString();
     }
 
     /**
@@ -60,7 +74,9 @@ public class Scanner {
     public void close() {
         try {
             buffer.close();
+            log.append("Scanner chiuso correttamente.\n");
         } catch (IOException e) {
+            log.append("Errore nella chiusura del file.\n");
             System.err.println("Errore nella chiusura del file: " + e.getMessage());
         }
     }
@@ -81,6 +97,7 @@ public class Scanner {
                 next = buffer.read();
 
                 if (next == -1) {
+                    log.append("Raggiunta fine file (EOF).\n");
                     // Restituisco il token speciale End Of File se il file è terminato
                     return new Token(TokenType.EOF, riga);
                 }
@@ -113,20 +130,27 @@ public class Scanner {
             }
 
             // Associo direttamente i simboli composti da un solo carattere al loro Token
+            Token t = null;
             switch (c) {
-                case ';': return new Token(TokenType.SEMI, riga);
-                case '/': return new Token(TokenType.DIVIDE, riga);
-                case '*': return new Token(TokenType.TIMES, riga);
-                case '-': return new Token(TokenType.MINUS, riga);
-                case '+': return new Token(TokenType.PLUS, riga);
-                case '=': return new Token(TokenType.ASSIGN, riga);
-                case '(': return new Token(TokenType.LPAREN, riga);
-                case ')': return new Token(TokenType.RPAREN, riga);
+                case ';': t = new Token(TokenType.SEMI, riga); break;
+                case '/': t = new Token(TokenType.DIVIDE, riga); break;
+                case '*': t = new Token(TokenType.TIMES, riga); break;
+                case '-': t = new Token(TokenType.MINUS, riga); break;
+                case '+': t = new Token(TokenType.PLUS, riga); break;
+                case '=': t = new Token(TokenType.ASSIGN, riga); break;
+                case '(': t = new Token(TokenType.LPAREN, riga); break;
+                case ')': t = new Token(TokenType.RPAREN, riga); break;
                 default:
-                    throw new LexicalException("Carattere non riconosciuto alla riga " + riga + ": " + c);
+                    String msg = "Carattere non riconosciuto alla riga " + riga + ": " + c;
+                    log.append("ERRORE LESSICALE: ").append(msg).append("\n");
+                    throw new LexicalException(msg);
             }
+            
+            log.append("Letto simbolo: ").append(t).append("\n");
+            return t;
 
         } catch (IOException e) {
+            log.append("Errore I/O critico durante la scansione.\n");
             throw new LexicalException("Errore di I/O durante la scansione: " + e.getMessage());
         }
     }
@@ -157,6 +181,7 @@ public class Scanner {
                 }
             }
 
+            Token t;
             // Verifico se il numero ha una virgola (punto), il che lo rende un float
             if (next != -1 && (char) next == '.') {
                 sb.append('.');
@@ -173,7 +198,9 @@ public class Scanner {
                         
                         // Limito la precisione massima a 5 cifre decimali
                         if (decimalDigits > 5) {
-                            throw new LexicalException("Errore Lessicale alla riga " + riga + ": I numeri float non possono avere più di 5 cifre decimali.");
+                            String msg = "I numeri float non possono avere più di 5 cifre decimali.";
+                            log.append("ERRORE: ").append(msg).append("\n");
+                            throw new LexicalException("Errore Lessicale alla riga " + riga + ": " + msg);
                         }
                         sb.append(c);
                     } else {
@@ -182,18 +209,23 @@ public class Scanner {
                 }
 
                 if (decimalDigits == 0) {
-                    throw new LexicalException("Errore Lessicale alla riga " + riga + ": Formato float non valido (attese cifre decimali).");
+                    String msg = "Formato float non valido (attese cifre decimali).";
+                    log.append("ERRORE: ").append(msg).append("\n");
+                    throw new LexicalException("Errore Lessicale alla riga " + riga + ": " + msg);
                 }
 
                 // Rimetto nel buffer l'ultimo carattere letto perché non fa parte del numero
                 if (next != -1) buffer.unread(next);
-                return new Token(TokenType.FLOAT, riga, sb.toString());
+                t = new Token(TokenType.FLOAT, riga, sb.toString());
 
             } else {
                 // Rimetto nel buffer l'ultimo carattere e restituisco il numero come intero
                 if (next != -1) buffer.unread(next);
-                return new Token(TokenType.INT, riga, sb.toString());
+                t = new Token(TokenType.INT, riga, sb.toString());
             }
+
+            log.append("Letto numero: ").append(t).append("\n");
+            return t;
 
         } catch (IOException e) {
             throw new LexicalException("Errore di I/O durante la lettura del numero: " + e.getMessage());
@@ -228,14 +260,18 @@ public class Scanner {
 
             // Converto i caratteri accumulati in una parola finale
             String word = sb.toString();
+            Token t;
 
             // Interrogo la mappa per scoprire se la parola appena letta ha un significato speciale
             if (keywordsMap.containsKey(word)) {
-                return new Token(keywordsMap.get(word), riga);
+                t = new Token(keywordsMap.get(word), riga);
+                log.append("Letta keyword: ").append(t).append("\n");
             } else {
                 // Altrimenti, la considero come un normale nome di variabile
-                return new Token(TokenType.ID, riga, word);
+                t = new Token(TokenType.ID, riga, word);
+                log.append("Letto identificatore: ").append(t).append("\n");
             }
+            return t;
 
         } catch (IOException e) {
             throw new LexicalException("Errore di I/O durante la scansione dell'identificatore: " + e.getMessage());

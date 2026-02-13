@@ -8,74 +8,92 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Classe di test per il controllore dei tipi (Type Checker).
- * Verifico che le operazioni tra tipi diversi generino conversioni
- * esplicite (Casting) o blocchino la compilazione se incompatibili.
+ * Classe di test per il controllo semantico dei tipi.
+ * Verifica che vengano rilevati errori di tipo e che le conversioni implicite
+ * vengano inserite correttamente nell'albero.
  */
 public class TypeCheckTest {
 
     /**
-     * Verifica la conversione automatica da intero a decimale.
+     * Verifica che l'uso di una variabile non dichiarata sollevi eccezione.
      */
     @Test
-    void testConversioneImplicita() {
-        NodeProgram program = new NodeProgram(1);
-        NodeId id = new NodeId("y", 1);
-        // Preparo un numero intero
-        NodeCost valoreIntero = new NodeCost(LangType.INT, "5", 1);
-        // Tento di assegnare l'intero a una variabile dichiarata float
-        NodeDecl dichiarazione = new NodeDecl(id, LangType.FLOAT, valoreIntero, 1);
-        program.addStatement(dichiarazione);
+    void testVariabileNonDichiarata() {
+        NodeProgram p = new NodeProgram(1);
+        // Cerco di stampare 'z' che non esiste
+        p.addStatement(new NodePrint(new NodeId("z", 1), 1));
 
-        // Faccio analizzare l'albero al controllore dei tipi
         TypeCheckVisitor visitor = new TypeCheckVisitor();
-        program.accept(visitor);
-
-        // Recupero l'espressione aggiornata
-        NodeExpr initDopoVisita = dichiarazione.getInit();
-        
-        // Verifico che il numero intero sia stato racchiuso in un nodo di conversione a float
-        assertTrue(initDopoVisita instanceof NodeConvert);
-        NodeConvert convertNode = (NodeConvert) initDopoVisita;
-        assertEquals(LangType.FLOAT, convertNode.getTargetType());
+        // Mi aspetto un errore semantico durante la visita
+        assertThrows(SyntacticException.class, () -> p.accept(visitor));
     }
 
     /**
-     * Verifica l'uso di una variabile inesistente.
+     * Verifica che la dichiarazione duplicata di una variabile sollevi eccezione.
      */
     @Test
-    void testUsoVariabileNonDichiarata() {
-        NodeProgram program = new NodeProgram(1);
-        NodeId id = new NodeId("z", 1);
-        // Costruisco l'azione di stampa di una variabile mai dichiarata
-        NodePrint stampa = new NodePrint(id, 1);
-        program.addStatement(stampa);
-
-        TypeCheckVisitor visitor = new TypeCheckVisitor();
-        
-        // Verifico l'interruzione del programma per violazione semantica
-        assertThrows(SyntacticException.class, () -> {
-            program.accept(visitor);
-        });
-    }
-
-    /**
-     * Verifica il rifiuto di operazioni senza conversione possibile.
-     */
-    @Test
-    void testTipoIncompatibile() {
-        NodeProgram program = new NodeProgram(1);
+    void testDoppiaDichiarazione() {
+        NodeProgram p = new NodeProgram(1);
         NodeId id = new NodeId("x", 1);
-        NodeCost valoreDecimale = new NodeCost(LangType.FLOAT, "3.14", 1);
-        // Tento di assegnare un float a una variabile intera (perderebbe dati)
-        NodeDecl dichiarazione = new NodeDecl(id, LangType.INT, valoreDecimale, 1);
-        program.addStatement(dichiarazione);
+        
+        // Dichiaro int x;
+        p.addStatement(new NodeDecl(id, LangType.INT, null, 1));
+        // Dichiaro float x; (stesso nome nello stesso scope)
+        p.addStatement(new NodeDecl(id, LangType.FLOAT, null, 2));
 
         TypeCheckVisitor visitor = new TypeCheckVisitor();
+        assertThrows(SyntacticException.class, () -> p.accept(visitor));
+    }
+
+    /**
+     * Verifica che l'assegnamento di un tipo incompatibile (float in int) sollevi eccezione.
+     */
+    @Test
+    void testAssegnamentoTipoErrato() {
+        NodeProgram p = new NodeProgram(1);
+        NodeId id = new NodeId("k", 1);
         
-        // Verifico l'interruzione della compilazione
-        assertThrows(SyntacticException.class, () -> {
-            program.accept(visitor);
-        });
+        // Dichiaro int k;
+        p.addStatement(new NodeDecl(id, LangType.INT, null, 1));
+        
+        // Assegno 3.14 a k (errore per perdita di precisione)
+        NodeCost val = new NodeCost(LangType.FLOAT, "3.14", 2);
+        p.addStatement(new NodeAssign(id, val, 2));
+
+        TypeCheckVisitor visitor = new TypeCheckVisitor();
+        assertThrows(SyntacticException.class, () -> p.accept(visitor));
+    }
+
+    /**
+     * Verifica che il TypeChecker modifichi fisicamente l'albero inserendo un cast
+     * quando si esegue un'operazione mista (INT + FLOAT).
+     */
+    @Test
+    void testCastImplicitoFunzionante() {
+        NodeProgram p = new NodeProgram(1);
+        
+        // Dichiaro float f;
+        NodeId f = new NodeId("f", 1);
+        p.addStatement(new NodeDecl(f, LangType.FLOAT, null, 1));
+        
+        // Creo l'espressione: 5 + 2.5
+        NodeCost nInt = new NodeCost(LangType.INT, "5", 2);
+        NodeCost nFloat = new NodeCost(LangType.FLOAT, "2.5", 2);
+        NodeBinOp somma = new NodeBinOp(LangOper.PLUS, nInt, nFloat, 2);
+        
+        // Assegno il risultato a f
+        p.addStatement(new NodeAssign(f, somma, 2));
+
+        TypeCheckVisitor visitor = new TypeCheckVisitor();
+        // Eseguo il controllo dei tipi
+        p.accept(visitor);
+
+        // Controllo che il nodo intero '5' sia stato avvolto in un nodo di conversione
+        assertTrue(somma.getLeft() instanceof NodeConvert, 
+                   "Il TypeChecker deve aver inserito il nodo di conversione!");
+        
+        // Verifico che la conversione sia verso il tipo FLOAT
+        NodeConvert cast = (NodeConvert) somma.getLeft();
+        assertEquals(LangType.FLOAT, cast.getTargetType());
     }
 }

@@ -27,15 +27,15 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeProgram node) {
-        // Inizio la stampa indicando l'intestazione del programma
+        // Scrivo l'intestazione per identificare l'inizio dell'albero
         sb.append("PROGRAM:\n");
         
         // Itero per stampare ogni singola istruzione e dichiarazione presente nella lista
         for (NodeDecSt stmt : node.getStatements()) {
-            // Aggiungo un po' di indentazione per rendere l'output più leggibile
+            // Aggiungo un po' di indentazione per rendere l'output visivamente gerarchico
             sb.append("  ");
             stmt.accept(this);
-            // Vado a capo dopo ogni istruzione
+            // Vado a capo dopo ogni istruzione per pulizia
             sb.append("\n");
         }
     }
@@ -46,16 +46,16 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeBinOp node) {
-        // Racchiudo ogni operazione tra parentesi per far capire bene l'ordine di valutazione e la precedenza
+        // Racchiudo l'operazione tra parentesi per evidenziare la precedenza nell'albero
         sb.append("(");
         
-        // Visito la parte sinistra dell'espressione
+        // Visito la parte sinistra dell'espressione (ricorsione)
         node.getLeft().accept(this);
         
-        // Aggiungo il simbolo dell'operatore in mezzo, staccato da spazi
+        // Aggiungo il simbolo dell'operatore staccato da spazi
         sb.append(" ").append(node.getOp()).append(" ");
         
-        // Visito la parte destra dell'espressione
+        // Visito la parte destra dell'espressione (ricorsione)
         node.getRight().accept(this);
         
         sb.append(")");
@@ -67,7 +67,7 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeCost node) {
-        // Aggiungo semplicemente il testo del numero
+        // Aggiungo direttamente il valore numerico al testo
         sb.append(node.getValue());
     }
 
@@ -77,7 +77,7 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeDeref node) {
-        // Per stampare la variabile letta, visito semplicemente l'identificatore che la rappresenta
+        // Visito l'identificatore interno per stamparne il nome
         node.getId().accept(this);
     }
 
@@ -87,7 +87,7 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeId node) {
-        // Aggiungo il nome della variabile al testo
+        // Aggiungo il nome della variabile allo StringBuilder
         sb.append(node.getName());
     }
 
@@ -97,16 +97,14 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeAssign node) {
-        // Visito la variabile che sta a sinistra
+        // Visito la variabile a sinistra dell'uguale
         node.getId().accept(this);
         
-        // Aggiungo il simbolo di uguaglianza
         sb.append(" = ");
         
-        // Visito tutto il calcolo o valore che sta a destra
+        // Visito l'espressione a destra che genera il valore
         node.getExpr().accept(this);
         
-        // Chiudo l'istruzione
         sb.append(";");
     }
 
@@ -118,10 +116,9 @@ public class PrintASTVisitor implements IVisitor {
     public void visit(NodePrint node) {
         sb.append("print ");
         
-        // Visito l'identificatore della variabile da stampare
+        // Visito la variabile che deve essere stampata
         node.getId().accept(this);
         
-        // Chiudo l'istruzione
         sb.append(";");
     }
 
@@ -131,20 +128,20 @@ public class PrintASTVisitor implements IVisitor {
      */
     @Override
     public void visit(NodeDecl node) {
-        // Converto il tipo logico dell'AST nella parola chiave corrispondente del linguaggio
+        // Controllo il tipo della variabile per scrivere la parola chiave corretta
         if (node.getType() == LangType.INT) {
             sb.append("int ");
         } else if (node.getType() == LangType.FLOAT) {
             sb.append("float ");
         }
 
-        // Visito il nome della variabile
+        // Visito il nome della variabile dichiarata
         node.getId().accept(this);
 
-        // Controllo se l'utente ha anche inizializzato la variabile sulla stessa riga
+        // Controllo se c'è anche una inizializzazione contestuale
         if (node.getInit() != null) {
             sb.append(" = ");
-            // Visito l'espressione iniziale
+            // Visito l'espressione di inizializzazione
             node.getInit().accept(this);
         }
 
@@ -152,12 +149,13 @@ public class PrintASTVisitor implements IVisitor {
     }
 
     /**
-     * Visita un nodo di conversione di tipo.
+     * Visita un nodo di conversione di tipo (Cast).
+     * Questo è fondamentale per il debug per vedere se il TypeChecker ha lavorato.
      * @param node Il nodo di casting.
      */
     @Override
     public void visit(NodeConvert node) {
-        // Scrivo la conversione tra parentesi tonde, come si fa in Java o in C
+        // Scrivo il cast esplicito tra parentesi come in Java/C
         sb.append("(");
         if (node.getTargetType() == LangType.INT) {
             sb.append("int");
@@ -166,7 +164,7 @@ public class PrintASTVisitor implements IVisitor {
         }
         sb.append(") ");
 
-        // Visito l'espressione a cui sto applicando la conversione
+        // Visito l'espressione che viene convertita
         node.getExpr().accept(this);
     }
 }

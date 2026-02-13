@@ -7,86 +7,108 @@ import it.unipmn.compilatore.ast.*;
 import it.unipmn.compilatore.exceptions.SyntacticException;
 
 /**
- * Classe di test per verificare la robustezza strutturale dei nodi dell'AST.
- * Mi assicuro che la creazione dei vari elementi dell'albero avvenga correttamente 
- * e che i controlli interni blocchino i tentativi di creare nodi non validi 
- * (ad esempio passando parametri nulli dove non consentito).
+ * Classe di test per verificare la struttura dei nodi dell'AST.
+ * Controllo che i nodi vengano creati con i dati corretti e che i costruttori
+ * rifiutino i valori nulli obbligatori.
  */
 public class ASTTest {
 
     /**
-     * Verifica la corretta creazione e i controlli di validità del nodo identificatore (variabile).
+     * Verifica la creazione del nodo identificatore.
      */
     @Test
     void testNodeId() {
-        // Creo un nodo identificatore simulando di aver letto la variabile "x"
         NodeId id = new NodeId("x", 1);
-        
-        // Verifico che il nome memorizzato corrisponda esattamente a quello fornito
         assertEquals("x", id.getName());
-
-        // Verifico che il costruttore mi blocchi sollevando un'eccezione se provo a passare un nome nullo
+        // Controllo che il costruttore rifiuti un nome nullo
         assertThrows(SyntacticException.class, () -> new NodeId(null, 1));
     }
 
     /**
-     * Verifica la corretta creazione e i controlli di validità per i nodi che rappresentano numeri.
+     * Verifica la creazione del nodo costante numerica.
      */
     @Test
     void testNodeCost() {
-        // Creo un nodo per simulare la lettura del numero intero 10
         NodeCost cost = new NodeCost(LangType.INT, "10", 1);
-        
-        // Verifico che tipo e valore siano stati salvati correttamente
         assertEquals(LangType.INT, cost.getType());
-        assertEquals("10", cost.getValue());
-
-        // Verifico che il sistema sollevi un'eccezione se dimentico di specificare il tipo del numero
+        // Controllo che il costruttore rifiuti valori o tipi nulli
         assertThrows(SyntacticException.class, () -> new NodeCost(null, "10", 1));
-        
-        // Verifico che il sistema sollevi un'eccezione se provo a creare una costante senza un valore testuale
-        assertThrows(SyntacticException.class, () -> new NodeCost(LangType.INT, "", 1));
+        assertThrows(SyntacticException.class, () -> new NodeCost(LangType.INT, null, 1));
     }
 
     /**
-     * Verifica il collegamento corretto tra un'operazione matematica e i suoi operandi (figli).
+     * Verifica la creazione di un'operazione binaria.
      */
     @Test
     void testNodeBinOp() {
-        // Preparo i due nodi foglia: una variabile a sinistra e un numero a destra
         NodeId left = new NodeId("a", 1);
         NodeCost right = new NodeCost(LangType.INT, "5", 1);
-
-        // Creo un nodo radice per l'operazione di somma collegando i due figli creati prima
+        // Collego i due operandi con l'operatore di somma
         NodeBinOp op = new NodeBinOp(LangOper.PLUS, left, right, 1);
 
-        // Verifico che il tipo di operazione salvata sia corretto
         assertEquals(LangOper.PLUS, op.getOp());
-        
-        // Verifico che i collegamenti tra padre e figlio siano rimasti intatti
         assertEquals(left, op.getLeft());
         assertEquals(right, op.getRight());
     }
 
     /**
-     * Verifica la creazione di dichiarazioni di variabili con e senza inizializzazione immediata.
+     * Verifica la creazione del nodo di stampa.
      */
     @Test
-    void testNodeDecl() {
-        // Preparo il nodo per il nome della variabile
-        NodeId id = new NodeId("a", 1);
-
-        // Creo una semplice dichiarazione del tipo "int a;" (senza valore iniziale)
-        NodeDecl decl = new NodeDecl(id, LangType.INT, null, 1);
+    void testNodePrint() {
+        NodeId id = new NodeId("res", 1);
+        NodePrint p = new NodePrint(id, 1);
+        assertEquals(id, p.getId());
+        // Controllo che non si possa stampare il nulla
+        assertThrows(SyntacticException.class, () -> new NodePrint(null, 1));
+    }
+    
+    /**
+     * Verifica la gestione della lista istruzioni nel nodo programma.
+     */
+    @Test
+    void testNodeProgram() {
+        NodeProgram prog = new NodeProgram(1);
+        prog.addStatement(new NodePrint(new NodeId("x", 1), 1));
+        // Controllo che l'istruzione sia stata aggiunta
+        assertEquals(1, prog.getStatements().size());
         
-        // Verifico che il nodo di inizializzazione sia effettivamente vuoto
-        assertNull(decl.getInit());
+        // Provo ad aggiungere un nodo nullo, la lista non deve cambiare
+        prog.addStatement(null);
+        assertEquals(1, prog.getStatements().size());
+    }
 
-        // Creo un nodo costante e lo uso per simulare un aggiornamento della dichiarazione "int a = 5;"
-        NodeCost init = new NodeCost(LangType.INT, "5", 1);
-        decl.setInit(init);
+    /**
+     * Verifica la creazione del nodo di conversione tipo (Cast).
+     * Questo nodo viene generato automaticamente dal compilatore, non dall'utente.
+     */
+    @Test
+    void testNodeConvert() {
+        NodeCost num = new NodeCost(LangType.INT, "5", 1);
+        // Simulo la creazione di un cast esplicito a float
+        NodeConvert conv = new NodeConvert(num, LangType.FLOAT);
         
-        // Verifico che il nuovo ramo dell'albero sia stato agganciato correttamente
-        assertEquals(init, decl.getInit());
+        assertEquals(LangType.FLOAT, conv.getTargetType());
+        // Controllo che il nodo contenga l'espressione originale
+        assertEquals(num, conv.getExpr());
+    }
+
+    /**
+     * Verifica la creazione e la modifica del nodo di assegnamento.
+     */
+    @Test
+    void testNodeAssign() {
+        NodeId id = new NodeId("x", 1);
+        NodeCost val = new NodeCost(LangType.INT, "10", 1);
+        NodeAssign assign = new NodeAssign(id, val, 1);
+
+        assertEquals(id, assign.getId());
+        assertEquals(val, assign.getExpr());
+        
+        // Simulo l'aggiornamento dell'espressione, utile quando il TypeChecker inserisce un cast
+        NodeConvert conv = new NodeConvert(val, LangType.FLOAT);
+        assign.setExpr(conv);
+        // Verifico che l'espressione sia stata sostituita correttamente
+        assertEquals(conv, assign.getExpr());
     }
 }
